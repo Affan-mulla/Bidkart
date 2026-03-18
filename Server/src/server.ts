@@ -11,16 +11,12 @@ const startServer = async () => {
 
     const port = Number(process.env.PORT) || 5000;
 
-    const server = app.listen(port, () => {
-      console.log(`[Server] listening on http://localhost:${port}`);
-    });
+    const server = app.listen(port);
 
-    server.on("error", (error) => {
-      console.error("[Server] listen failed", error);
+    server.on("error", (_error) => {
       process.exit(1);
     });
-  } catch (error) {
-    console.error("[Server] startup failed", error);
+  } catch {
     process.exit(1);
   }
 };
