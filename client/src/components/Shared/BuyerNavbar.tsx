@@ -1,5 +1,7 @@
 import { useAuthStore } from "@/store/authStore";
 import useAuth from "@/hooks/useAuth";
+import { getCart } from "@/api/cart.api";
+import { useCartStore } from "@/store/cartStore";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import {
@@ -12,7 +14,7 @@ import {
 } from "../ui/dropdown-menu";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Logo from "./Logo";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu01Icon, Search01Icon, ShoppingCart01Icon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
 
@@ -20,9 +22,24 @@ export default function BuyerNavbar() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const totalItems = useCartStore((s) => s.totalItems);
   const { signOut } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      useCartStore.getState().reset();
+      return;
+    }
+
+    getCart()
+      .then((cart) => {
+        useCartStore.getState().setTotalItems(cart.totalItems);
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
 
   const handleSearchRedirect = () => {
     const trimmedQuery = searchQuery.trim();
@@ -117,7 +134,7 @@ export default function BuyerNavbar() {
         <ul className="hidden lg:flex items-center gap-1.5 text-sm">
           <NavItem to="/">Home</NavItem>
           <NavItem to="/products">Products</NavItem>
-          <NavItem to="/auctions">Auctions</NavItem>
+          {/* <NavItem to="/auctions">Auctions</NavItem> */}
         </ul>
 
         {/* Right side */}
@@ -138,13 +155,13 @@ export default function BuyerNavbar() {
             className="relative flex items-center justify-center p-2 rounded-full hover:bg-muted text-foreground transition-colors"
           >
             <HugeiconsIcon icon={ShoppingCart01Icon} className="size-5" />
-            {1 > 0 && (
+            {totalItems > 0 && (
               <span
                 className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] 
                                font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center 
                                justify-center border-2 border-background shadow-sm"
               >
-                {1 > 9 ? "9+" : 1}
+                {totalItems > 9 ? "9+" : totalItems}
               </span>
             )}
           </Link>

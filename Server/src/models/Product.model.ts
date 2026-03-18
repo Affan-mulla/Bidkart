@@ -11,7 +11,6 @@ export interface IProduct {
   stock: number;
   ratings: number;
   reviewsCount: number;
-  isApproved: boolean;
   tags: string[];
   createdAt?: Date;
   updatedAt?: Date;
@@ -74,11 +73,6 @@ const productSchema = new Schema<IProduct>(
       type: Number,
       default: 0,
       min: 0,
-      index: true,
-    },
-    isApproved: {
-      type: Boolean,
-      default: false,
       index: true,
     },
     tags: {

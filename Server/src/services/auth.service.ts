@@ -91,7 +91,7 @@ const getSafeUser = (user: IUserDocument): AuthUserResponse => ({
 /**
  * Build access and refresh token pair.
  */
-const buildTokens = (user: { _id: string; email: string; role: "buyer" | "seller" | "admin" }) => {
+const buildTokens = (user: { _id: string; email: string; role: "buyer" | "seller" }) => {
   const payload: AuthJwtPayload = {
     sub: String(user._id),
     email: user.email,
@@ -392,14 +392,11 @@ export const getMe = async (userId: string): Promise<AuthUserResponse> => {
   const result: AuthUserResponse = getSafeUser(user);
 
   if (user.role === "seller") {
-    const sellerProfile = await SellerProfile.findOne({ userId: user._id }).select(
-      "storeName isApproved"
-    );
+    const sellerProfile = await SellerProfile.findOne({ userId: user._id }).select("storeName");
 
     result.sellerProfile = sellerProfile
       ? {
           storeName: sellerProfile.storeName,
-          isApproved: sellerProfile.isApproved,
         }
       : null;
   }

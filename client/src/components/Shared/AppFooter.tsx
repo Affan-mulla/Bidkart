@@ -12,9 +12,9 @@ export default function AppFooter() {
           <Link className="transition-colors hover:text-foreground" to="/products">
             Products
           </Link>
-          <Link className="transition-colors hover:text-foreground" to="/auctions">
+          {/* <Link className="transition-colors hover:text-foreground" to="/auctions">
             Auctions
-          </Link>
+          </Link> */}
           <Link className="transition-colors hover:text-foreground" to="/orders">
             Orders
           </Link>

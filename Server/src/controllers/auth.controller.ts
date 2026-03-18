@@ -87,7 +87,6 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 export const refreshToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const tokenFromCookie = req.cookies.refreshToken as string | undefined;
-    console.log("Refresh token from cookie:", tokenFromCookie);
 
     if (!tokenFromCookie) {
       return next(new AppError("No refresh token provided", 401));

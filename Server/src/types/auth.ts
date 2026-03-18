@@ -1,4 +1,4 @@
-export type UserRole = "buyer" | "seller" | "admin";
+export type UserRole = "buyer" | "seller";
 
 export interface AuthJwtPayload {
   sub: string;
@@ -17,6 +17,5 @@ export interface AuthUserResponse {
   isVerified: boolean;
   sellerProfile?: {
     storeName: string;
-    isApproved: boolean;
   } | null;
 }

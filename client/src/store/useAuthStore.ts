@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-export type UserRole = "buyer" | "seller" | "admin"
+export type UserRole = "buyer" | "seller"
 
 export type AuthUser = {
   _id: string
@@ -8,6 +8,9 @@ export type AuthUser = {
   email: string
   role: UserRole
   avatar?: string
+  sellerProfile?: {
+    storeName: string
+  } | null
 }
 
 type LegacyCredentialsPayload = {

@@ -11,7 +11,6 @@ const connectDB = async (): Promise<void> => {
   }
 
   await mongoose.connect(mongoUri);
-  console.log("MongoDB connected");
 };
 
 export default connectDB;

@@ -24,7 +24,6 @@ type LoginSchema = z.infer<typeof loginSchema>
 const roleRouteMap = {
   buyer: "/",
   seller: "/seller/dashboard",
-  admin: "/admin/dashboard",
 } as const
 
 export default function LoginForm() {

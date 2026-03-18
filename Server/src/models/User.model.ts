@@ -50,7 +50,7 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
     },
     role: {
       type: String,
-      enum: ["buyer", "seller", "admin"],
+      enum: ["buyer", "seller"],
       default: "buyer",
       index: true,
     },

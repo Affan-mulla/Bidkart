@@ -5,16 +5,8 @@ export interface ISellerProfile {
   storeName: string;
   storeDescription: string;
   storeLogo?: string | null;
-  kycDocuments: string[];
-  isApproved: boolean;
-  isKycSubmitted: boolean;
   rating: number;
   totalSales: number;
-  bankDetails: {
-    accountNumber: string;
-    ifsc: string;
-    bankName: string;
-  };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -44,19 +36,6 @@ const sellerProfileSchema = new Schema<ISellerProfile>(
       type: String,
       default: null,
     },
-    kycDocuments: {
-      type: [String],
-      default: [],
-    },
-    isApproved: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
-    isKycSubmitted: {
-      type: Boolean,
-      default: false,
-    },
     rating: {
       type: Number,
       default: 0,
@@ -67,20 +46,6 @@ const sellerProfileSchema = new Schema<ISellerProfile>(
       type: Number,
       default: 0,
       min: 0,
-    },
-    bankDetails: {
-      accountNumber: {
-        type: String,
-        default: "",
-      },
-      ifsc: {
-        type: String,
-        default: "",
-      },
-      bankName: {
-        type: String,
-        default: "",
-      },
     },
   },
   {

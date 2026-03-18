@@ -5,6 +5,8 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { errorHandler } from "./middleware/error.middleware";
 import authRoutes from "./routes/auth.routes";
+import cartRoutes from "./routes/cart.routes";
+import orderRoutes from "./routes/order.routes";
 import productRoutes from "./routes/product.routes";
 import AppError from "./utils/appError";
 import { sendSuccess } from "./utils/response.utils";
@@ -39,6 +41,8 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/orders", orderRoutes);
 
 app.use((req, _res, next) => {
   next(new AppError(`Route not found: ${req.originalUrl}`, 404));
