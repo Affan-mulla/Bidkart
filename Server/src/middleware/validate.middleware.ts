@@ -43,6 +43,21 @@ export const authSchemas = {
   }),
 };
 
+export const auctionSchemas = {
+  createAuction: z.object({
+    productId: z.string(),
+    startPrice: z.number().min(1),
+    reservePrice: z.number().optional(),
+    buyItNowPrice: z.number().optional(),
+    startTime: z.string().datetime(),
+    endTime: z.string().datetime(),
+  }),
+  placeBid: z.object({
+    amount: z.number().min(1),
+    maxAutoBid: z.number().optional(),
+  }),
+};
+
 /**
  * Validate request body against Zod schema.
  */

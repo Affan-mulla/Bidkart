@@ -8,6 +8,7 @@ import {
   placeOrder,
   updateOrderStatus,
 } from "../controllers/order.controller";
+import { downloadInvoiceHandler } from "../controllers/payment.controller";
 import { protect, roleGuard } from "../middleware/auth.middleware";
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.patch("/:id/cancel", protect, roleGuard("buyer"), cancelOrder);
 router.get("/seller", protect, roleGuard("seller"), getSellerOrders);
 router.get("/seller/:id", protect, roleGuard("seller"), getSellerOrderById);
 router.patch("/seller/:id/status", protect, roleGuard("seller"), updateOrderStatus);
+router.get("/:id/invoice", protect, roleGuard("buyer"), downloadInvoiceHandler);
 router.get("/:id", protect, roleGuard("buyer"), getBuyerOrderById);
 
 export default router;

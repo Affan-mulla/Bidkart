@@ -1,15 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { CheckmarkCircle01Icon, CreditCardIcon, MapPinIcon } from "@hugeicons/core-free-icons";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { getCart } from "@/api/cart.api";
-import { placeOrder } from "@/api/order.api";
+import { cancelOrder, placeOrder } from "@/api/order.api";
+import { createRazorpayOrder, verifyPayment } from "@/api/payment.api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { loadRazorpayScript, openRazorpayCheckout } from "@/lib/razorpay";
 import { useCartStore } from "@/store/cartStore";
 
 const INDIAN_STATES = [
@@ -63,6 +65,8 @@ type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 export default function Checkout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [paymentMethod, setPaymentMethod] = useState<"Razorpay" | "COD">("Razorpay");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const cartQuery = useQuery({
     queryKey: ["cart"],
@@ -92,30 +96,89 @@ export default function Checkout() {
     },
   });
 
-  const placeOrderMutation = useMutation({
-    mutationFn: (values: CheckoutFormValues) =>
-      placeOrder(
+  const handleCheckout = async (values: CheckoutFormValues) => {
+    try {
+      setIsProcessingPayment(true);
+
+      const order = await placeOrder(
         {
           fullName: values.fullName,
           phone: values.phone,
           addressLine1: values.addressLine1,
-          addressLine2: values.addressLine2 || "",
+          addressLine2: values.addressLine2 ?? "",
           city: values.city,
           state: values.state,
           pincode: values.pincode,
         },
-        "COD",
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cart"] });
-      useCartStore.getState().reset();
-      toast.success("Order placed successfully!");
-      navigate("/orders");
-    },
-    onError: () => {
-      toast.error("Failed to place order. Please try again.");
-    },
-  });
+        paymentMethod,
+      );
+
+      if (paymentMethod === "COD") {
+        queryClient.invalidateQueries({ queryKey: ["cart"] });
+        useCartStore.getState().reset();
+        toast.success("Order placed successfully!");
+        navigate("/orders");
+        return;
+      }
+
+      const loaded = await loadRazorpayScript();
+
+      if (!loaded) {
+        toast.error("Could not load payment gateway. Please try again.");
+        await cancelOrder(order._id, "Payment gateway failed to load");
+        return;
+      }
+
+      const { razorpayOrderId, amount, keyId } = await createRazorpayOrder(order._id);
+
+      try {
+        const paymentResponse = await openRazorpayCheckout({
+          key: keyId,
+          amount,
+          currency: "INR",
+          name: "BidKart",
+          description: `Order #${order._id.slice(-8).toUpperCase()}`,
+          order_id: razorpayOrderId,
+          prefill: {
+            name: values.fullName,
+            contact: values.phone,
+          },
+          theme: { color: "#9b2c2c" },
+        });
+
+        await verifyPayment({
+          orderId: order._id,
+          razorpayOrderId: paymentResponse.razorpay_order_id,
+          razorpayPaymentId: paymentResponse.razorpay_payment_id,
+          razorpaySignature: paymentResponse.razorpay_signature,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ["cart"] });
+        useCartStore.getState().reset();
+        toast.success("Payment successful! Order confirmed.");
+        navigate("/orders");
+      } catch (paymentError) {
+        const message = paymentError instanceof Error ? paymentError.message : "";
+
+        if (message === "Payment cancelled") {
+          toast.info("Payment cancelled. Your order has been removed.");
+        } else {
+          toast.error("Payment failed. Please try again.");
+        }
+
+        try {
+          await cancelOrder(order._id, "Payment not completed");
+        } catch {
+          // Best-effort cancellation for pending payment orders.
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Something went wrong.";
+      toast.error(message);
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
 
   if (cartQuery.isLoading) {
     return (
@@ -178,7 +241,7 @@ export default function Checkout() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((values) => placeOrderMutation.mutate(values))} className="space-y-4">
+              <form onSubmit={form.handleSubmit(handleCheckout)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="fullName"
@@ -292,17 +355,59 @@ export default function Checkout() {
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-foreground">Payment Method</p>
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
-                    <span className="inline-flex items-center gap-2 text-sm text-foreground">
-                      <HugeiconsIcon icon={CreditCardIcon} className="size-4" />
-                      💵 Cash on Delivery
-                    </span>
-                    <HugeiconsIcon icon={CheckmarkCircle01Icon} className="size-4 text-primary" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("Razorpay")}
+                      className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                        paymentMethod === "Razorpay"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex size-8 items-center justify-center rounded-md bg-[#072654] text-xs font-bold text-white">
+                        R
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Pay Online</p>
+                        <p className="text-xs text-muted-foreground">Card, UPI, NetBanking</p>
+                      </div>
+                      {paymentMethod === "Razorpay" ? (
+                        <HugeiconsIcon icon={CheckmarkCircle01Icon} className="ml-auto size-4 text-primary" />
+                      ) : null}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("COD")}
+                      className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                        paymentMethod === "COD"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex size-8 items-center justify-center rounded-md bg-green-100 text-green-700">
+                        <HugeiconsIcon icon={CreditCardIcon} className="size-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Cash on Delivery</p>
+                        <p className="text-xs text-muted-foreground">Pay when delivered</p>
+                      </div>
+                      {paymentMethod === "COD" ? (
+                        <HugeiconsIcon icon={CheckmarkCircle01Icon} className="ml-auto size-4 text-primary" />
+                      ) : null}
+                    </button>
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={placeOrderMutation.isPending}>
-                  {placeOrderMutation.isPending ? "Placing Order..." : "Place Order"}
+                <Button type="submit" className="w-full" disabled={isProcessingPayment}>
+                  {isProcessingPayment
+                    ? paymentMethod === "Razorpay"
+                      ? "Opening Payment..."
+                      : "Placing Order..."
+                    : paymentMethod === "Razorpay"
+                      ? "Proceed to Pay"
+                      : "Place Order"}
                 </Button>
               </form>
             </Form>

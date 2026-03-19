@@ -31,8 +31,11 @@ export interface Order {
   deliveryCharge: number;
   totalAmount: number;
   status: "Placed" | "Confirmed" | "Packed" | "Shipped" | "Delivered" | "Cancelled";
-  paymentMethod: "COD";
+  paymentMethod: "COD" | "Razorpay";
   paymentStatus: "Pending" | "Paid" | "Refunded";
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  invoiceNumber?: string;
   cancelReason: string;
   createdAt: string;
   updatedAt: string;
@@ -58,7 +61,10 @@ export interface PaginatedOrdersResponse {
 /**
  * Places an order from cart items using the provided shipping address.
  */
-export async function placeOrder(shippingAddress: AddressForm, paymentMethod = "COD"): Promise<Order> {
+export async function placeOrder(
+  shippingAddress: AddressForm,
+  paymentMethod: "COD" | "Razorpay" = "COD",
+): Promise<Order> {
   const response = await axiosInstance.post("/orders", {
     shippingAddress,
     paymentMethod,

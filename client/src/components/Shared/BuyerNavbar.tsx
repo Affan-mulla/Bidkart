@@ -4,6 +4,8 @@ import { getCart } from "@/api/cart.api";
 import { useCartStore } from "@/store/cartStore";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Badge } from "../ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,13 +86,16 @@ export default function BuyerNavbar() {
                       flex items-center justify-between px-4 lg:px-8 h-16 gap-4"
       >
         <div className="flex gap-4 items-center">
-          {/* Mobile Menu Toggle */}
-          <button 
-            className="lg:hidden text-foreground hover:bg-muted p-1.5 rounded-md"
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Open buyer navigation"
           >
-            <HugeiconsIcon icon={Menu01Icon} />
-          </button>
+            <HugeiconsIcon icon={Menu01Icon} className="size-5" />
+          </Button>
           
           {/* Logo */}
           <Logo />
@@ -107,16 +112,18 @@ export default function BuyerNavbar() {
         </div>
 
         {/* Search */}
-        <div className="hidden md:flex flex-1 max-w-2xl items-center gap-2 bg-muted/50 border border-border/50 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 hover:bg-muted/80 transition-all rounded-full px-4 h-10">
-          <button
+        <div className="hidden md:flex flex-1 max-w-2xl items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-2 h-10 transition-all hover:bg-muted/80 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20">
+          <Button
             type="button"
-            className="text-muted-foreground"
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-full text-muted-foreground"
             onClick={handleSearchRedirect}
             aria-label="Search"
           >
             <HugeiconsIcon icon={Search01Icon} className="size-4" />
-          </button>
-          <input
+          </Button>
+          <Input
             type="text"
             placeholder="Search products, auctions and more..."
             value={searchQuery}
@@ -126,7 +133,7 @@ export default function BuyerNavbar() {
                 handleSearchRedirect();
               }
             }}
-            className="bg-transparent outline-none text-sm w-full text-foreground placeholder:text-muted-foreground"
+            className="h-8 w-full border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
           />
         </div>
 
@@ -134,20 +141,22 @@ export default function BuyerNavbar() {
         <ul className="hidden lg:flex items-center gap-1.5 text-sm">
           <NavItem to="/">Home</NavItem>
           <NavItem to="/products">Products</NavItem>
-          {/* <NavItem to="/auctions">Auctions</NavItem> */}
+          <NavItem to="/auctions">Auctions</NavItem>
         </ul>
 
         {/* Right side */}
         <div className="flex items-center gap-3 shrink-0">
           {/* Mobile Search Icon */}
-          <button
+          <Button
             type="button"
-            className="md:hidden text-foreground hover:bg-muted p-2 rounded-full transition-colors"
+            variant="ghost"
+            size="icon"
+            className="md:hidden rounded-full"
             onClick={handleSearchRedirect}
             aria-label="Search"
           >
              <HugeiconsIcon icon={Search01Icon} className="size-5" />
-          </button>
+          </Button>
 
           {/* Cart icon — always visible */}
           <Link
@@ -156,13 +165,12 @@ export default function BuyerNavbar() {
           >
             <HugeiconsIcon icon={ShoppingCart01Icon} className="size-5" />
             {totalItems > 0 && (
-              <span
-                className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] 
-                               font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center 
-                               justify-center border-2 border-background shadow-sm"
+              <Badge
+                className="absolute top-0 right-0 min-w-[18px] border-2 border-background px-1 py-0 text-[10px]"
+                variant="default"
               >
                 {totalItems > 9 ? "9+" : totalItems}
-              </span>
+              </Badge>
             )}
           </Link>
 

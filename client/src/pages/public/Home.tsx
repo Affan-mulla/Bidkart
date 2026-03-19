@@ -1,20 +1,49 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowRight01Icon,
+  AuctionIcon,
+  CheckmarkCircle01Icon,
+  CreditCardIcon,
+  FilterIcon,
+  MapPinIcon,
+  RotateClockwiseIcon,
+  ShoppingBag01Icon,
+} from "@hugeicons/core-free-icons";
 
 import { getProducts, type SearchProduct } from "@/api/product.api";
 import ProductCard from "@/components/search/ProductCard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CATEGORIES = [
-  { label: "Electronics", emoji: "🔌" },
-  { label: "Clothing", emoji: "👕" },
-  { label: "Books", emoji: "📚" },
-  { label: "Home & Kitchen", emoji: "🏠" },
-  { label: "Sports", emoji: "⚽" },
-  { label: "Other", emoji: "📦" },
+  { label: "Electronics", icon: FilterIcon },
+  { label: "Clothing", icon: ShoppingBag01Icon },
+  { label: "Books", icon: MapPinIcon },
+  { label: "Home & Kitchen", icon: CreditCardIcon },
+  { label: "Sports", icon: AuctionIcon },
+  { label: "Other", icon: CheckmarkCircle01Icon },
+];
+
+const TRUST_SIGNALS = [
+  {
+    title: "Fast Delivery",
+    description: "Orders shipped within 2-3 business days.",
+    icon: RotateClockwiseIcon,
+  },
+  {
+    title: "Secure Payments",
+    description: "Protected checkout with trusted payment processing.",
+    icon: CreditCardIcon,
+  },
+  {
+    title: "Easy Returns",
+    description: "Simple 7-day returns for eligible orders.",
+    icon: CheckmarkCircle01Icon,
+  },
 ];
 
 /**
@@ -29,10 +58,13 @@ export default function Home() {
   });
 
   return (
-    <main className="bg-background">
-      <section className="bg-linear-to-b from-primary/10 to-background">
-        <div className="mx-auto max-w-7xl px-4 py-16 md:py-20">
-          <div className="max-w-3xl space-y-5">
+    <main className="bg-background pb-12">
+      <section className="border-b border-border/60 bg-[radial-gradient(circle_at_top,oklch(0.97_0.03_75)_0%,transparent_45%)]">
+        <div className="mx-auto max-w-7xl px-4 py-14 md:py-20 lg:px-8">
+          <div className="max-w-3xl space-y-6">
+            <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs tracking-wide">
+              Curated marketplace with live auctions
+            </Badge>
             <h1 className="text-4xl font-bold leading-tight text-foreground md:text-5xl">
               <span className="block">Shop Smarter.</span>
               <span className="block">Bid Better.</span>
@@ -40,7 +72,7 @@ export default function Home() {
             <p className="max-w-2xl text-base text-muted-foreground md:text-lg">
               Discover thousands of products or win exclusive deals in live auctions.
             </p>
-            <div className="flex flex-wrap gap-3 pt-1">
+            <div className="flex flex-wrap gap-3 pt-2">
               <Button size="lg" onClick={() => navigate("/products")}>
                 Browse Products
               </Button>
@@ -52,26 +84,28 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-10">
-        <h2 className="mb-4 text-2xl font-semibold text-foreground">Shop by Category</h2>
-        <div className="flex gap-3 overflow-x-auto pb-2">
+      <section className="mx-auto max-w-7xl px-4 py-10 lg:px-8">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <h2 className="text-2xl font-semibold text-foreground">Shop by Category</h2>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/products")}>View all categories</Button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {CATEGORIES.map((category) => (
-            <button
+            <Card
               key={category.label}
-              type="button"
-              className="min-w-[150px] rounded-xl border border-border bg-card p-4 text-center transition-colors hover:bg-muted"
+              className="cursor-pointer border-border/80 bg-card/80 py-0 transition-colors hover:bg-accent"
               onClick={() => navigate(`/products?category=${encodeURIComponent(category.label)}`)}
             >
-              <div className="text-2xl" aria-hidden>
-                {category.emoji}
-              </div>
-              <p className="mt-2 text-sm font-medium text-foreground">{category.label}</p>
-            </button>
+              <CardContent className="flex items-center gap-2 p-4">
+                <HugeiconsIcon icon={category.icon} className="size-5 text-primary" />
+                <p className="text-sm font-medium text-foreground">{category.label}</p>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-6">
+      <section className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold text-foreground">Featured Products</h2>
           <button
@@ -110,31 +144,19 @@ export default function Home() {
         ) : null}
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-12">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="text-center">
-            <p className="text-2xl" aria-hidden>
-              🚚
-            </p>
-            <p className="mt-2 font-medium text-foreground">Fast Delivery</p>
-            <p className="mt-1 text-sm text-muted-foreground">Orders shipped within 2-3 business days</p>
-          </div>
-
-          <div className="text-center">
-            <p className="text-2xl" aria-hidden>
-              🔒
-            </p>
-            <p className="mt-2 font-medium text-foreground">Secure Payments</p>
-            <p className="mt-1 text-sm text-muted-foreground">100% secure checkout guaranteed</p>
-          </div>
-
-          <div className="text-center">
-            <p className="text-2xl" aria-hidden>
-              ↩️
-            </p>
-            <p className="mt-2 font-medium text-foreground">Easy Returns</p>
-            <p className="mt-1 text-sm text-muted-foreground">Hassle-free 7-day return policy</p>
-          </div>
+      <section className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {TRUST_SIGNALS.map((item) => (
+            <Card key={item.title} className="py-0">
+              <CardHeader className="flex flex-row items-center gap-3 pb-3">
+                <div className="rounded-md bg-primary/10 p-2 text-primary">
+                  <HugeiconsIcon icon={item.icon} className="size-5" />
+                </div>
+                <CardTitle className="text-base">{item.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 text-sm text-muted-foreground">{item.description}</CardContent>
+            </Card>
+          ))}
         </div>
       </section>
     </main>

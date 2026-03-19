@@ -7,6 +7,7 @@ import {
   Cancel01Icon,
   Clock01Icon,
   DeliveryBox01Icon,
+  Download01Icon,
   MapPinIcon,
   Package01Icon,
 } from "@hugeicons/core-free-icons";
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import api from "@/lib/axios";
 
 const ORDER_STEPS: Array<Order["status"]> = ["Placed", "Confirmed", "Packed", "Shipped", "Delivered"];
 
@@ -99,7 +101,29 @@ export default function OrderDetail() {
     );
   }
 
+  const handleDownloadInvoice = async () => {
+    try {
+      const res = await api.get(`/orders/${order._id}/invoice`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `BidKart-Invoice-${order.invoiceNumber ?? order._id.slice(-8).toUpperCase()}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Could not download invoice. Please try again.");
+    }
+  };
+
   const canCancel = order.status === "Placed" || order.status === "Confirmed";
+  const canDownloadInvoice =
+    order.paymentStatus === "Paid" ||
+    (order.paymentMethod === "COD" && order.status === "Delivered");
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8">
@@ -123,7 +147,9 @@ export default function OrderDetail() {
 
           <div className="text-right">
             <Badge variant="outline" className={getStatusBadgeClass(order.status)}>{order.status}</Badge>
-            <p className="mt-1 text-xs text-muted-foreground">Cash on Delivery · {order.paymentStatus}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {order.paymentMethod === "Razorpay" ? "Online Payment" : "Cash on Delivery"} · {order.paymentStatus}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -245,6 +271,22 @@ export default function OrderDetail() {
               <span className="text-foreground">Total</span>
               <span className="text-foreground">₹{order.totalAmount.toLocaleString("en-IN")}</span>
             </div>
+
+            <Separator />
+
+            {canDownloadInvoice ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                onClick={() => {
+                  void handleDownloadInvoice();
+                }}
+              >
+                <HugeiconsIcon icon={Download01Icon} className="size-4" />
+                Download Invoice
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
       </div>

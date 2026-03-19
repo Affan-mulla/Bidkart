@@ -1,6 +1,9 @@
 import "dotenv/config";
+import { createServer } from "http";
 import app from "./app";
 import connectDB from "./config/db";
+import { startAuctionJobs } from "./jobs/auction.job";
+import { initSocket } from "./sockets";
 
 /**
  * Start HTTP server after required services are connected.
@@ -11,9 +14,13 @@ const startServer = async () => {
 
     const port = Number(process.env.PORT) || 5000;
 
-    const server = app.listen(port);
+    const httpServer = createServer(app);
+    initSocket(httpServer);
+    startAuctionJobs();
 
-    server.on("error", (_error) => {
+    httpServer.listen(port);
+
+    httpServer.on("error", (_error) => {
       process.exit(1);
     });
   } catch {

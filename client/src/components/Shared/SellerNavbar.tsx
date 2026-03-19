@@ -1,14 +1,29 @@
 import { useAuthStore } from "@/store/authStore"
 import useAuth from "@/hooks/useAuth"
-import { NavLink, useNavigate } from "react-router-dom"
+import { Link, NavLink, useNavigate } from "react-router-dom"
 import { useState } from "react"
 import { toast } from "sonner"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Menu01Icon, Notification03Icon } from "@hugeicons/core-free-icons"
+
+import Logo from "./Logo"
+import { Badge } from "../ui/badge"
+import { Button } from "../ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu"
 
 
 export default function SellerNavbar() {
   const user = useAuthStore((s) => s.user)
   const { signOut } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const navigate = useNavigate()
 
@@ -37,72 +52,98 @@ export default function SellerNavbar() {
     .toUpperCase()
     .slice(0, 2)
 
-  return (
-    <nav className="sticky top-0 z-50 h-14 bg-white border-b border-gray-100 
-                    flex items-center justify-between px-6 gap-4">
-
-      {/* Logo — orange dot for seller */}
-      <div className="flex items-center gap-2 font-medium text-lg shrink-0">
-        <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
-        BidKart
-      </div>
-
-      {/* Seller nav links */}
-      <ul className="flex items-center gap-1 text-sm">
-        <SellerNavItem to="/seller/dashboard">Dashboard</SellerNavItem>
-        <SellerNavItem to="/seller/listings">Listings</SellerNavItem>
-        <SellerNavItem to="/seller/orders">Orders</SellerNavItem>
-        <SellerNavItem to="/seller/auctions/create">Auctions</SellerNavItem>
-        <SellerNavItem to="/seller/analytics">Analytics</SellerNavItem>
-      </ul>
-
-      {/* Right side */}
-      <div className="flex items-center gap-2 shrink-0">
-        {/* Notifications */}
-        <button className="relative w-9 h-9 flex items-center justify-center 
-                           rounded-lg border border-gray-200 hover:bg-gray-50 
-                           text-gray-500 hover:text-gray-800 transition-colors">
-          <BellIcon />
-        </button>
-
-        <div className="w-px h-5 bg-gray-200" />
-
-        {/* Seller badge */}
-        <span className="text-xs bg-orange-50 text-orange-800 px-2.5 py-1 
-                         rounded-full font-medium">
-          Seller
-        </span>
-
-        {/* Avatar dropdown */}
-        <div className="relative group">
-          <button className="w-8 h-8 rounded-full bg-orange-50 text-orange-800 
-                             text-xs font-medium flex items-center justify-center 
-                             border border-gray-200 cursor-pointer">
-            {initials}
-          </button>
-          <div className="absolute right-0 top-10 w-44 bg-white border border-gray-100 
-                          rounded-xl shadow-sm py-1 hidden group-hover:block z-50">
-            <div className="px-4 py-2 border-b border-gray-100">
-              <p className="text-sm font-medium text-gray-800 truncate">{user?.name}</p>
-              <p className="text-xs text-gray-400 truncate">{user?.email}</p>
-            </div>
-            <NavLink to="/seller/dashboard"
-              className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">
-              Dashboard
-            </NavLink>
-            <div className="h-px bg-gray-100 my-1" />
-            <button
-              onClick={() => {
-                void handleLogout()
-              }}
-              disabled={isLoggingOut}
-              className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50">
-              {isLoggingOut ? "Logging out..." : "Log out"}
-            </button>
-          </div>
+    return (
+      <>
+      <nav className="sticky top-0 z-50 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80 lg:px-8">
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setIsMobileMenuOpen((currentValue) => !currentValue)}
+            aria-label="Open seller navigation"
+          >
+            <HugeiconsIcon icon={Menu01Icon} className="size-5" />
+          </Button>
+          <Logo />
         </div>
-      </div>
-    </nav>
+
+        <ul className="hidden items-center gap-1 text-sm lg:flex">
+          <SellerNavItem to="/seller/dashboard">Dashboard</SellerNavItem>
+          <SellerNavItem to="/seller/listings">Listings</SellerNavItem>
+          <SellerNavItem to="/seller/orders">Orders</SellerNavItem>
+          <SellerNavItem to="/seller/auctions/create">Auctions</SellerNavItem>
+          <SellerNavItem to="/seller/analytics">Analytics</SellerNavItem>
+        </ul>
+
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" size="icon" aria-label="Notifications">
+            <HugeiconsIcon icon={Notification03Icon} className="size-5" />
+          </Button>
+          <Badge variant="secondary" className="hidden rounded-full px-3 py-1 text-xs sm:inline-flex">
+            Seller
+          </Badge>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary ring-2 ring-transparent transition-all data-[state=open]:ring-primary/20"
+              >
+                {initials || "S"}
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="border-b border-border/60 pb-2">
+                <p className="truncate text-sm font-medium">{user?.name || "Seller"}</p>
+                <p className="truncate text-xs text-muted-foreground">{user?.email || "seller@example.com"}</p>
+              </DropdownMenuLabel>
+
+              <DropdownMenuItem asChild>
+                <Link to="/seller/dashboard">Dashboard</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/seller/orders">Orders</Link>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  void handleLogout()
+                }}
+                disabled={isLoggingOut}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                {isLoggingOut ? "Logging out..." : "Log out"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </nav>
+
+      {isMobileMenuOpen ? (
+        <div className="fixed inset-x-0 top-16 z-40 border-b border-border bg-background p-4 lg:hidden">
+          <ul className="flex flex-col gap-2">
+            <MobileSellerNavItem to="/seller/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+              Dashboard
+            </MobileSellerNavItem>
+            <MobileSellerNavItem to="/seller/listings" onClick={() => setIsMobileMenuOpen(false)}>
+              Listings
+            </MobileSellerNavItem>
+            <MobileSellerNavItem to="/seller/orders" onClick={() => setIsMobileMenuOpen(false)}>
+              Orders
+            </MobileSellerNavItem>
+            <MobileSellerNavItem to="/seller/auctions/create" onClick={() => setIsMobileMenuOpen(false)}>
+              Auctions
+            </MobileSellerNavItem>
+            <MobileSellerNavItem to="/seller/analytics" onClick={() => setIsMobileMenuOpen(false)}>
+              Analytics
+            </MobileSellerNavItem>
+          </ul>
+        </div>
+      ) : null}
+    </>
   )
 }
 
@@ -112,10 +153,10 @@ function SellerNavItem({ to , children } : { to: string, children: React.ReactNo
       <NavLink
         to={to}
         className={({ isActive }) =>
-          `px-3 py-1.5 rounded-lg text-sm transition-colors ${
+          `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             isActive
-              ? "bg-orange-50 text-orange-800 font-medium"
-              : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
           }`
         }
       >
@@ -125,12 +166,21 @@ function SellerNavItem({ to , children } : { to: string, children: React.ReactNo
   )
 }
 
-function BellIcon() {
+function MobileSellerNavItem({ to, children, onClick }: { to: string; children: React.ReactNode; onClick: () => void }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
+    <li>
+      <NavLink
+        to={to}
+        end
+        onClick={onClick}
+        className={({ isActive }) =>
+          `block rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+            isActive ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+          }`
+        }
+      >
+        {children}
+      </NavLink>
+    </li>
   )
 }

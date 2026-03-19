@@ -30,7 +30,7 @@ export type OrderStatus =
   | "Delivered"
   | "Cancelled";
 
-export type PaymentMethod = "COD";
+export type PaymentMethod = "COD" | "Razorpay";
 
 export type PaymentStatus = "Pending" | "Paid" | "Refunded";
 
@@ -44,6 +44,10 @@ export interface IOrder {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  invoiceNumber?: string;
   cancelReason: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -188,13 +192,33 @@ const orderSchema = new Schema<IOrder>(
     },
     paymentMethod: {
       type: String,
-      enum: ["COD"],
+      enum: ["COD", "Razorpay"],
       default: "COD",
     },
     paymentStatus: {
       type: String,
       enum: ["Pending", "Paid", "Refunded"],
       default: "Pending",
+    },
+    razorpayOrderId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    razorpaySignature: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    invoiceNumber: {
+      type: String,
+      default: "",
+      trim: true,
     },
     cancelReason: {
       type: String,
