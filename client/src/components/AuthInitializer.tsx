@@ -1,7 +1,9 @@
 import { useEffect } from "react"
 
+import { getWishlist } from "@/api/wishlist.api"
 import { getMe } from "@/lib/auth.api"
 import { useAuthStore } from "@/store/useAuthStore"
+import { useWishlistStore } from "@/store/wishlistStore"
 
 export default function AuthInitializer() {
   useEffect(() => {
@@ -21,6 +23,17 @@ export default function AuthInitializer() {
 
         if (isMounted) {
           setCredentials(user, accessToken)
+
+          if (user.role === "buyer") {
+            try {
+              const wishlist = await getWishlist()
+              useWishlistStore.getState().setWishlistedIds(
+                wishlist.items.map((item) => item._id),
+              )
+            } catch {
+              // Wishlist hydration failure is non-critical.
+            }
+          }
         }
       } catch {
         if (isMounted) {

@@ -10,6 +10,8 @@ import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
 import paymentRoutes from "./routes/payment.routes";
 import productRoutes from "./routes/product.routes";
+import reviewRoutes from "./routes/review.routes";
+import wishlistRoutes from "./routes/wishlist.routes";
 import AppError from "./utils/appError";
 import { sendSuccess } from "./utils/response.utils";
 
@@ -48,6 +50,8 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/auctions", auctionRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/wishlist", wishlistRoutes);
 
 app.use((req, _res, next) => {
   next(new AppError(`Route not found: ${req.originalUrl}`, 404));

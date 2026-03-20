@@ -261,12 +261,14 @@ export default function Cart() {
 
                 navigate("/checkout");
               }}
+              variant={"form"}
+              size={"lg"}
             >
               Proceed to Checkout
               <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
             </Button>
 
-            <Button variant="ghost" className="w-full" onClick={() => navigate("/products")}>Continue Shopping</Button>
+            <Button variant="ghost" size={"lg"}  className="w-full" onClick={() => navigate("/products")}>Continue Shopping</Button>
           </CardContent>
         </Card>
       </div>

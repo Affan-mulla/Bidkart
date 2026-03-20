@@ -5,6 +5,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  FavouriteIcon,
+  HeartCheckIcon,
   Package01Icon,
   Store01Icon,
   Tag01Icon,
@@ -13,6 +15,8 @@ import { toast } from "sonner";
 
 import { addToCart, type AddToCartPayload } from "@/api/cart.api";
 import { getProductById } from "@/api/product.api";
+import { addToWishlist, removeFromWishlist } from "@/api/wishlist.api";
+import ReviewList from "@/components/reviews/ReviewList";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useWishlistStore } from "@/store/wishlistStore";
 
 /**
  * Renders details for a single product.
@@ -29,6 +34,8 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+  const role = useAuthStore((state) => state.role);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
@@ -52,6 +59,10 @@ export default function ProductDetail() {
   });
 
   const product = queryResult.data;
+
+  const isWishlisted = useWishlistStore((state) => (product ? state.isWishlisted(product._id) : false));
+  const wishlistAdd = useWishlistStore((state) => state.add);
+  const wishlistRemove = useWishlistStore((state) => state.remove);
 
   const variantGroups = useMemo(() => {
     if (!product?.variants?.length) {
@@ -111,6 +122,32 @@ export default function ProductDetail() {
       </section>
     );
   }
+
+  const handleWishlistToggle = async () => {
+    if (!isAuthenticated) {
+      navigate(`/login?redirect=/product/${product._id}`);
+      return;
+    }
+
+    if (isWishlisted) {
+      wishlistRemove(product._id);
+      try {
+        await removeFromWishlist(product._id);
+      } catch {
+        wishlistAdd(product._id);
+        toast.error("Failed to update wishlist");
+      }
+      return;
+    }
+
+    wishlistAdd(product._id);
+    try {
+      await addToWishlist(product._id);
+    } catch {
+      wishlistRemove(product._id);
+      toast.error("Failed to update wishlist");
+    }
+  };
 
   const imageUrls = product.images || [];
   const hasImages = imageUrls.length > 0;
@@ -259,28 +296,43 @@ export default function ProductDetail() {
             </div>
           ) : null}
 
-          <Button
-            type="button"
-            className="w-full"
-            disabled={product.stock === 0 || addMutation.isPending}
-            onClick={() => {
-              if (!isAuthenticated) {
-                navigate(`/login?redirect=${encodeURIComponent(`/products/${id ?? ""}`)}`);
-                return;
-              }
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              className="w-full"
+              disabled={product.stock === 0 || addMutation.isPending}
+              onClick={() => {
+                if (!isAuthenticated) {
+                  navigate(`/login?redirect=${encodeURIComponent(`/products/${id ?? ""}`)}`);
+                  return;
+                }
 
-              const [variantKey, variantValue] = Object.entries(selectedVariants)[0] ?? [undefined, undefined];
+                const [variantKey, variantValue] = Object.entries(selectedVariants)[0] ?? [undefined, undefined];
 
-              addMutation.mutate({
-                productId: product._id,
-                quantity,
-                ...(variantKey ? { variantKey } : {}),
-                ...(variantValue ? { variantValue } : {}),
-              });
-            }}
-          >
-            {addMutation.isPending ? "Adding..." : "Add to Cart"}
-          </Button>
+                addMutation.mutate({
+                  productId: product._id,
+                  quantity,
+                  ...(variantKey ? { variantKey } : {}),
+                  ...(variantValue ? { variantValue } : {}),
+                });
+              }}
+            >
+              {addMutation.isPending ? "Adding..." : "Add to Cart"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                void handleWishlistToggle();
+              }}
+              className={isWishlisted ? "border-red-300 text-red-500 hover:bg-red-50" : ""}
+              aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            >
+              <HugeiconsIcon icon={isWishlisted ? HeartCheckIcon : FavouriteIcon} className="size-5" />
+            </Button>
+          </div>
 
           <Separator />
 
@@ -320,6 +372,14 @@ export default function ProductDetail() {
             ))}
           </div>
         ) : null}
+      </div>
+
+      <div className="mt-12">
+        <ReviewList
+          productId={product._id}
+          currentUserId={user?._id}
+          currentUserRole={role ?? undefined}
+        />
       </div>
     </section>
   );

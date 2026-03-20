@@ -58,6 +58,19 @@ export const auctionSchemas = {
   }),
 };
 
+export const reviewSchemas = {
+  createReview: z.object({
+    orderId: z.string().min(1, "Order ID required"),
+    rating: z.number().int().min(1).max(5),
+    title: z.string().min(3, "Title too short").max(100),
+    body: z.string().min(10, "Review too short").max(1000),
+    images: z.array(z.string().url()).max(3).optional(),
+  }),
+  sellerReply: z.object({
+    text: z.string().min(1).max(500),
+  }),
+};
+
 /**
  * Validate request body against Zod schema.
  */
