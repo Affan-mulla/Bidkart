@@ -71,6 +71,23 @@ export const reviewSchemas = {
   }),
 };
 
+export const profileSchemas = {
+  updateProfile: z.object({
+    name: z.string().min(2).max(80).optional(),
+  }),
+  address: z.object({
+    label: z.enum(["Home", "Work", "Other"]),
+    fullName: z.string().min(2).max(80),
+    phone: z.string().regex(/^[6-9]\d{9}$/, "Enter valid 10-digit mobile"),
+    addressLine1: z.string().min(5).max(200),
+    addressLine2: z.string().max(200).optional(),
+    city: z.string().min(1).max(80),
+    state: z.string().min(1).max(80),
+    pincode: z.string().regex(/^\d{6}$/, "Enter valid 6-digit pincode"),
+    isDefault: z.boolean().optional(),
+  }),
+};
+
 /**
  * Validate request body against Zod schema.
  */

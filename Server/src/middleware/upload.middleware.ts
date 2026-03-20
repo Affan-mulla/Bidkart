@@ -22,6 +22,17 @@ const storage = new CloudinaryStorage({
   },
 });
 
+const avatarStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async () => {
+    return {
+      folder: "bidkart/avatars",
+      allowed_formats: ["jpg", "jpeg", "png", "webp"],
+      resource_type: "image",
+    } as never;
+  },
+});
+
 const upload = multer({
   storage,
   limits: {
@@ -37,3 +48,19 @@ const upload = multer({
 });
 
 export const uploadProductImages = upload.array("images", 5);
+
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: {
+    files: 1,
+  },
+  fileFilter: (_req, file, callback) => {
+    if (!allowedMimeTypes.has(file.mimetype)) {
+      return callback(new AppError("Only jpeg, png, and webp images are allowed", 400));
+    }
+
+    return callback(null, true);
+  },
+});
+
+export const uploadAvatar = avatarUpload.single("avatar");

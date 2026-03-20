@@ -11,6 +11,7 @@ import { z } from "zod";
 import { getCart } from "@/api/cart.api";
 import { cancelOrder, placeOrder } from "@/api/order.api";
 import { createRazorpayOrder, verifyPayment } from "@/api/payment.api";
+import { getAddresses, type Address } from "@/api/profile.api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,10 +68,16 @@ export default function Checkout() {
   const queryClient = useQueryClient();
   const [paymentMethod, setPaymentMethod] = useState<"Razorpay" | "COD">("Razorpay");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   const cartQuery = useQuery({
     queryKey: ["cart"],
     queryFn: getCart,
+  });
+
+  const addressesQuery = useQuery({
+    queryKey: ["addresses"],
+    queryFn: getAddresses,
   });
 
   useEffect(() => {
@@ -95,6 +102,34 @@ export default function Checkout() {
       pincode: "",
     },
   });
+
+  const applyAddressToForm = (address: Address) => {
+    form.setValue("fullName", address.fullName, { shouldDirty: true });
+    form.setValue("phone", address.phone, { shouldDirty: true });
+    form.setValue("addressLine1", address.addressLine1, { shouldDirty: true });
+    form.setValue("addressLine2", address.addressLine2 || "", { shouldDirty: true });
+    form.setValue("city", address.city, { shouldDirty: true });
+    form.setValue("state", address.state, { shouldDirty: true });
+    form.setValue("pincode", address.pincode, { shouldDirty: true });
+  };
+
+  useEffect(() => {
+    if (!addressesQuery.data || addressesQuery.data.length === 0) {
+      return;
+    }
+
+    if (selectedAddressId) {
+      const selected = addressesQuery.data.find((address) => address._id === selectedAddressId);
+      if (selected) {
+        applyAddressToForm(selected);
+        return;
+      }
+    }
+
+    const defaultAddress = addressesQuery.data.find((address) => address.isDefault) || addressesQuery.data[0];
+    setSelectedAddressId(defaultAddress._id);
+    applyAddressToForm(defaultAddress);
+  }, [addressesQuery.data, selectedAddressId]);
 
   const handleCheckout = async (values: CheckoutFormValues) => {
     try {
@@ -242,6 +277,73 @@ export default function Checkout() {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleCheckout)} className="space-y-4">
+                {addressesQuery.isLoading ? (
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <Skeleton className="h-28 w-full" />
+                    <Skeleton className="h-28 w-full" />
+                  </div>
+                ) : null}
+
+                {!addressesQuery.isLoading && !addressesQuery.isError && (addressesQuery.data?.length ?? 0) > 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-foreground">Select Saved Address</p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {addressesQuery.data?.map((address) => {
+                        const isSelected = selectedAddressId === address._id;
+
+                        return (
+                          <button
+                            key={address._id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedAddressId(address._id);
+                              applyAddressToForm(address);
+                            }}
+                            className={`rounded-lg border p-3 text-left transition-colors ${
+                              isSelected
+                                ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                : "border-gray-200 bg-white hover:bg-gray-50"
+                            }`}
+                          >
+                            <div className="mb-2 flex items-center gap-2">
+                              <Badge variant="outline">{address.label}</Badge>
+                              {address.isDefault ? (
+                                <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">
+                                  Default
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className="text-sm font-medium text-foreground">{address.fullName}</p>
+                            <p className="text-xs text-muted-foreground">{address.phone}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {address.addressLine1}
+                              {address.addressLine2 ? `, ${address.addressLine2}` : ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {address.city}, {address.state} - {address.pincode}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Saved address selected. You can still edit details manually below.
+                    </p>
+                  </div>
+                ) : null}
+
+                {addressesQuery.isError ? (
+                  <Alert variant="destructive">
+                    <AlertTitle>Could not load saved addresses</AlertTitle>
+                    <AlertDescription>You can still enter your address manually below.</AlertDescription>
+                  </Alert>
+                ) : null}
+
+                <div className="space-y-2">
+                  <Separator />
+                  <p className="text-sm font-medium text-foreground">Or enter / edit delivery address manually</p>
+                </div>
+
                 <FormField
                   control={form.control}
                   name="fullName"

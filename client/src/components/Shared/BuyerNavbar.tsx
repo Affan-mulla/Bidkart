@@ -1,7 +1,9 @@
 import { useAuthStore } from "@/store/authStore";
 import useAuth from "@/hooks/useAuth";
 import { getCart } from "@/api/cart.api";
+import { getAddresses } from "@/api/profile.api";
 import { useCartStore } from "@/store/cartStore";
+import { useQuery } from "@tanstack/react-query";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -17,7 +19,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import Logo from "./Logo";
 import { useEffect, useState } from "react";
-import { Menu01Icon, Search01Icon, ShoppingCart01Icon } from "@hugeicons/core-free-icons";
+import { MapPinpoint01Icon, Menu01Icon, Search01Icon, ShoppingCart01Icon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
 
 export default function BuyerNavbar() {
@@ -29,6 +31,12 @@ export default function BuyerNavbar() {
   const { signOut } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const addressesQuery = useQuery({
+    queryKey: ["addresses"],
+    queryFn: getAddresses,
+    enabled: isAuthenticated,
+  });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -79,6 +87,11 @@ export default function BuyerNavbar() {
     .toUpperCase()
     .slice(0, 2);
 
+  const defaultAddress = addressesQuery.data?.find((address) => address.isDefault) || addressesQuery.data?.[0];
+  const deliveryLine = defaultAddress
+    ? `${defaultAddress.city}, ${defaultAddress.state} ${defaultAddress.pincode}`
+    : "Add delivery address";
+
   return (
     <>
       <nav
@@ -101,13 +114,16 @@ export default function BuyerNavbar() {
           <Logo />
 
           <div className="hidden lg:flex flex-col px-3 ml-3 border-l border-border/60">
-            {/* Location */}
             <span className="text-xs text-muted-foreground leading-tight">
               Deliver to
             </span>
-            <span className="text-sm font-medium leading-tight cursor-pointer hover:text-primary transition-colors">
-              New York
-            </span>
+            <Link
+              to="/profile"
+              className="inline-flex items-center gap-1 text-sm font-medium leading-tight text-foreground transition-colors hover:text-primary"
+            >
+              <HugeiconsIcon icon={MapPinpoint01Icon} className="size-4 text-primary" />
+              <span className="max-w-[220px] truncate">{deliveryLine}</span>
+            </Link>
           </div>
         </div>
 
@@ -238,6 +254,20 @@ export default function BuyerNavbar() {
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-background/95 backdrop-blur-sm border-t border-border mt-16 p-4 overflow-y-auto">
           <div className="flex flex-col gap-4">
+            {token ? (
+              <Link
+                to="/profile"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-xl border border-border/50 bg-muted/30 px-4 py-3"
+              >
+                <p className="text-xs text-muted-foreground">Deliver to</p>
+                <p className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-foreground">
+                  <HugeiconsIcon icon={MapPinpoint01Icon} className="size-4 text-primary" />
+                  <span className="truncate">{deliveryLine}</span>
+                </p>
+              </Link>
+            ) : null}
+
             <ul className="flex flex-col gap-2">
               <MobileNavItem to="/" onClick={() => setIsMobileMenuOpen(false)}>Home</MobileNavItem>
               <MobileNavItem to="/products" onClick={() => setIsMobileMenuOpen(false)}>Products</MobileNavItem>
