@@ -41,6 +41,8 @@ export interface IOrder {
   subtotal: number;
   deliveryCharge: number;
   totalAmount: number;
+  couponCode?: string;
+  couponDiscount?: number;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
@@ -182,6 +184,16 @@ const orderSchema = new Schema<IOrder>(
     totalAmount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    couponCode: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    couponDiscount: {
+      type: Number,
+      default: 0,
       min: 0,
     },
     status: {

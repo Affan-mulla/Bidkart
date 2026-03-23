@@ -4,6 +4,8 @@ import Order, { IOrderDocument, IShippingAddress, OrderStatus, PaymentMethod } f
 import Product from "../models/Product.model";
 import AppError from "../utils/appError";
 import * as cartService from "./cart.service";
+import { applyCoupon, validateCoupon } from "./coupon.service";
+import { createNotification } from "./notification.service";
 
 interface PaginatedOrdersResult {
   orders: Array<IOrderDocument | Record<string, unknown>>;
@@ -52,7 +54,8 @@ const ensureValidOrderId = (orderId: string) => {
 export const placeOrder = async (
   buyerId: string,
   shippingAddress: IShippingAddress,
-  paymentMethod: PaymentMethod
+  paymentMethod: PaymentMethod,
+  couponCode?: string
 ): Promise<IOrderDocument> => {
   validateShippingAddress(shippingAddress);
 
@@ -100,6 +103,23 @@ export const placeOrder = async (
 
   const subtotal = orderItems.reduce((sum, item) => sum + item.itemTotal, 0);
   const deliveryCharge = 0;
+  let couponDiscount = 0;
+  let appliedCouponCode = "";
+  let appliedCouponId = "";
+
+  if (couponCode && couponCode.trim()) {
+    const cartCategories = Array.from(new Set(products.map((product) => product.category || "")));
+    const couponResult = await validateCoupon(
+      couponCode,
+      buyerId,
+      subtotal,
+      cartCategories.filter(Boolean)
+    );
+
+    couponDiscount = couponResult.discountAmount;
+    appliedCouponCode = couponResult.coupon.code;
+    appliedCouponId = String(couponResult.coupon._id);
+  }
 
   const order = await Order.create({
     buyerId: new Types.ObjectId(buyerId),
@@ -115,7 +135,9 @@ export const placeOrder = async (
     },
     subtotal,
     deliveryCharge,
-    totalAmount: subtotal + deliveryCharge,
+    totalAmount: subtotal + deliveryCharge - couponDiscount,
+    couponCode: appliedCouponCode || null,
+    couponDiscount,
     status: "Placed",
     paymentMethod,
     paymentStatus: "Pending",
@@ -131,6 +153,17 @@ export const placeOrder = async (
   );
 
   await cartService.clearCart(buyerId);
+
+  if (appliedCouponId) {
+    await applyCoupon(appliedCouponId, buyerId);
+  }
+
+  await createNotification(buyerId, {
+    type: "order_update",
+    title: "Order Placed",
+    message: `Your order #${String(order._id).slice(-8).toUpperCase()} has been placed successfully.`,
+    link: `/orders/${String(order._id)}`,
+  });
 
   return order;
 };
@@ -289,6 +322,20 @@ export const updateOrderStatus = async (
   order.status = newStatus as OrderStatus;
   await order.save();
 
+  const statusMessages: Partial<Record<OrderStatus, string>> = {
+    Confirmed: "Your order is confirmed and being prepared",
+    Packed: "Your order has been packed and is ready to ship",
+    Shipped: "Your order is on the way!",
+    Delivered: "Your order has been delivered. Enjoy!",
+  };
+
+  await createNotification(String(order.buyerId), {
+    type: "order_update",
+    title: `Order ${newStatus}`,
+    message: statusMessages[order.status] || `Your order status is now ${newStatus}`,
+    link: `/orders/${String(order._id)}`,
+  });
+
   return order;
 };
 
@@ -326,6 +373,13 @@ export const cancelOrder = async (
   order.status = "Cancelled";
   order.cancelReason = reason;
   await order.save();
+
+  await createNotification(buyerId, {
+    type: "order_update",
+    title: "Order Cancelled",
+    message: `Your order #${String(order._id).slice(-8).toUpperCase()} has been cancelled.`,
+    link: `/orders/${String(order._id)}`,
+  });
 
   return order;
 };

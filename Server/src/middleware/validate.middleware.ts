@@ -88,6 +88,15 @@ export const profileSchemas = {
   }),
 };
 
+export const couponSchemas = {
+  validateCoupon: z.object({
+    code: z.string().min(1, "Coupon code is required").max(40),
+  }),
+  applyCoupon: z.object({
+    couponId: z.string().min(1, "couponId is required"),
+  }),
+};
+
 /**
  * Validate request body against Zod schema.
  */

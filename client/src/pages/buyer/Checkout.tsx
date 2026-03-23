@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { CheckmarkCircle01Icon, CreditCardIcon, MapPinIcon } from "@hugeicons/core-free-icons";
+import { CheckmarkCircle01Icon, CreditCardIcon, MapPinIcon, RotateClockwiseIcon } from "@hugeicons/core-free-icons";
+import { AxiosError } from "axios";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +10,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { getCart } from "@/api/cart.api";
+import { applyCoupon, type CouponValidateResponse, validateCoupon } from "@/api/coupon.api";
 import { cancelOrder, placeOrder } from "@/api/order.api";
 import { createRazorpayOrder, verifyPayment } from "@/api/payment.api";
 import { getAddresses, type Address } from "@/api/profile.api";
@@ -69,6 +71,9 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState<"Razorpay" | "COD">("Razorpay");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidateResponse | null>(null);
+  const [isCouponLoading, setIsCouponLoading] = useState(false);
 
   const cartQuery = useQuery({
     queryKey: ["cart"],
@@ -146,9 +151,18 @@ export default function Checkout() {
           pincode: values.pincode,
         },
         paymentMethod,
+        appliedCoupon?.couponCode,
       );
 
       if (paymentMethod === "COD") {
+        if (appliedCoupon?.couponId) {
+          try {
+            await applyCoupon(appliedCoupon.couponId);
+          } catch {
+            toast.error("Order placed, but coupon usage was not recorded.");
+          }
+        }
+
         queryClient.invalidateQueries({ queryKey: ["cart"] });
         useCartStore.getState().reset();
         toast.success("Order placed successfully!");
@@ -188,6 +202,14 @@ export default function Checkout() {
           razorpaySignature: paymentResponse.razorpay_signature,
         });
 
+        if (appliedCoupon?.couponId) {
+          try {
+            await applyCoupon(appliedCoupon.couponId);
+          } catch {
+            toast.error("Payment completed, but coupon usage was not recorded.");
+          }
+        }
+
         queryClient.invalidateQueries({ queryKey: ["cart"] });
         useCartStore.getState().reset();
         toast.success("Payment successful! Order confirmed.");
@@ -213,6 +235,40 @@ export default function Checkout() {
     } finally {
       setIsProcessingPayment(false);
     }
+  };
+
+  const handleApplyCoupon = async () => {
+    const normalizedCouponCode = couponCode.trim().toUpperCase();
+
+    if (!normalizedCouponCode) {
+      toast.error("Please enter a coupon code.");
+      return;
+    }
+
+    try {
+      setIsCouponLoading(true);
+      const validatedCoupon = await validateCoupon(normalizedCouponCode);
+      setCouponCode(validatedCoupon.couponCode);
+      setAppliedCoupon(validatedCoupon);
+      toast.success(`${validatedCoupon.couponCode} applied successfully.`);
+    } catch (error) {
+      const fallbackMessage = "Unable to apply coupon. Please try again.";
+      if (error instanceof AxiosError) {
+        const errorMessage = (error.response?.data as { message?: string } | undefined)?.message;
+        toast.error(errorMessage || fallbackMessage);
+      } else if (error instanceof Error) {
+        toast.error(error.message || fallbackMessage);
+      } else {
+        toast.error(fallbackMessage);
+      }
+    } finally {
+      setIsCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
   };
 
   if (cartQuery.isLoading) {
@@ -251,6 +307,7 @@ export default function Checkout() {
   }
 
   const cart = cartQuery.data;
+  const totalAmount = appliedCoupon?.finalAmount ?? cart.subtotal;
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -502,6 +559,46 @@ export default function Checkout() {
                   </div>
                 </div>
 
+                <div className="space-y-3 rounded-lg border border-border p-3">
+                  <p className="text-sm font-medium text-foreground">Coupon Code</p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponCode}
+                      onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                      placeholder="Enter coupon code"
+                      disabled={isCouponLoading}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        void handleApplyCoupon();
+                      }}
+                      disabled={isCouponLoading || couponCode.trim().length === 0}
+                    >
+                      {isCouponLoading ? (
+                        <>
+                          <HugeiconsIcon icon={RotateClockwiseIcon} className="size-4 animate-spin" />
+                          Applying...
+                        </>
+                      ) : (
+                        "Apply"
+                      )}
+                    </Button>
+                  </div>
+
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between rounded-md border border-green-200 bg-green-50 px-3 py-2">
+                      <p className="text-sm font-medium text-green-700">
+                        {appliedCoupon.couponCode} applied - ₹{appliedCoupon.discountAmount.toLocaleString("en-IN")} off!
+                      </p>
+                      <Button type="button" variant="ghost" size="sm" onClick={handleRemoveCoupon}>
+                        Remove
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+
                 <Button type="submit" className="w-full" disabled={isProcessingPayment}>
                   {isProcessingPayment
                     ? paymentMethod === "Razorpay"
@@ -555,11 +652,18 @@ export default function Checkout() {
               <span className="text-primary">Free</span>
             </div>
 
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between text-sm text-green-700">
+                <span>Coupon ({appliedCoupon.couponCode})</span>
+                <span>- ₹{appliedCoupon.discountAmount.toLocaleString("en-IN")}</span>
+              </div>
+            ) : null}
+
             <Separator />
 
             <div className="flex items-center justify-between">
               <span className="font-semibold text-foreground">Total</span>
-              <span className="text-lg font-bold text-foreground">₹{cart.subtotal.toLocaleString("en-IN")}</span>
+              <span className="text-lg font-bold text-foreground">₹{totalAmount.toLocaleString("en-IN")}</span>
             </div>
           </CardContent>
         </Card>

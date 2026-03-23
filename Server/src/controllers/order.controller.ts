@@ -26,8 +26,13 @@ export const placeOrder = async (req: Request, res: Response, next: NextFunction
       throw new AppError("Unauthorized", 401);
     }
 
-    const { shippingAddress, paymentMethod = "COD" } = req.body;
-    const order = await orderService.placeOrder(String(authUser._id), shippingAddress, paymentMethod);
+    const { shippingAddress, paymentMethod = "COD", couponCode } = req.body;
+    const order = await orderService.placeOrder(
+      String(authUser._id),
+      shippingAddress,
+      paymentMethod,
+      couponCode
+    );
 
     return sendSuccess(res, "Order placed successfully", { order });
   } catch (error) {

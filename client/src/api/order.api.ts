@@ -64,10 +64,12 @@ export interface PaginatedOrdersResponse {
 export async function placeOrder(
   shippingAddress: AddressForm,
   paymentMethod: "COD" | "Razorpay" = "COD",
+  couponCode?: string,
 ): Promise<Order> {
   const response = await axiosInstance.post("/orders", {
     shippingAddress,
     paymentMethod,
+    ...(couponCode ? { couponCode } : {}),
   });
 
   return response.data?.data?.order;

@@ -1,4 +1,5 @@
 import { logoutUser } from "@/lib/auth.api"
+import { useNotificationStore } from "@/store/notificationStore"
 import { useAuthStore } from "@/store/useAuthStore"
 
 const useAuth = () => {
@@ -20,6 +21,7 @@ const useAuth = () => {
       clearPendingEmail()
       sessionStorage.removeItem("bidkart_pending_email")
       clearAuth()
+      useNotificationStore.getState().reset()
     }
   }
 

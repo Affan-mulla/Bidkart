@@ -18,6 +18,7 @@ import {
 } from "../ui/dropdown-menu";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Logo from "./Logo";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import { useEffect, useState } from "react";
 import { MapPinpoint01Icon, Menu01Icon, Search01Icon, ShoppingCart01Icon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
@@ -173,6 +174,8 @@ export default function BuyerNavbar() {
           >
              <HugeiconsIcon icon={Search01Icon} className="size-5" />
           </Button>
+
+           {isAuthenticated ? <NotificationBell /> : null}
 
           {/* Cart icon — always visible */}
           <Link

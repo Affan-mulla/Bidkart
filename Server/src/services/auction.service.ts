@@ -9,6 +9,7 @@ import Order from "../models/Order.model";
 import User from "../models/User.model";
 import AppError from "../utils/appError";
 import { io } from "../sockets";
+import { createNotification } from "./notification.service";
 
 
 interface CreateAuctionInput {
@@ -569,6 +570,13 @@ export const endAuction = async (auctionId: string): Promise<IAuctionDocument> =
     });
 
     auction.winnerOrderId = winnerOrder._id as Types.ObjectId;
+
+    await createNotification(String(auction.currentBidderId), {
+      type: "auction_won",
+      title: "You won the auction!",
+      message: `Congratulations! You won "${auction.title}" with a bid of ₹${auction.currentBid.toLocaleString("en-IN")}.`,
+      link: "/orders",
+    });
   }
 
   await auction.save();

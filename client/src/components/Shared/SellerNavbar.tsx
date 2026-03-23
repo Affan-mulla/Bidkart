@@ -4,9 +4,10 @@ import { Link, NavLink, useNavigate } from "react-router-dom"
 import { useState } from "react"
 import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Menu01Icon, Notification03Icon } from "@hugeicons/core-free-icons"
+import { Menu01Icon } from "@hugeicons/core-free-icons"
 
 import Logo from "./Logo"
+import NotificationBell from "@/components/notifications/NotificationBell"
 import { Badge } from "../ui/badge"
 import { Button } from "../ui/button"
 import {
@@ -78,9 +79,7 @@ export default function SellerNavbar() {
         </ul>
 
         <div className="flex items-center gap-2">
-          <Button type="button" variant="ghost" size="icon" aria-label="Notifications">
-            <HugeiconsIcon icon={Notification03Icon} className="size-5" />
-          </Button>
+          <NotificationBell />
           <Badge variant="secondary" className="hidden rounded-full px-3 py-1 text-xs sm:inline-flex">
             Seller
           </Badge>

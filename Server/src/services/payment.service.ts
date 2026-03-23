@@ -3,6 +3,7 @@ import Razorpay from "razorpay";
 import Order from "../models/Order.model";
 import { getNextInvoiceNumber } from "../models/Counter.model";
 import AppError from "../utils/appError";
+import { createNotification } from "./notification.service";
 
 const razorpayKeyId = process.env.RAZORPAY_KEY_ID || "";
 const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || "";
@@ -130,6 +131,13 @@ export async function markOrderPaid(
   order.invoiceNumber = invoiceNumber;
 
   await order.save();
+
+  await createNotification(String(order.buyerId), {
+    type: "payment_received",
+    title: "Payment Confirmed",
+    message: `Payment of ₹${order.totalAmount.toLocaleString("en-IN")} received for order #${invoiceNumber}.`,
+    link: `/orders/${String(order._id)}`,
+  });
 }
 
 /**

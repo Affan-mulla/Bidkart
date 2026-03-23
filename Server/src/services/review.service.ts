@@ -2,7 +2,9 @@ import { Types } from "mongoose";
 import Order from "../models/Order.model";
 import Product from "../models/Product.model";
 import Review, { IReviewDocument } from "../models/Review.model";
+import User from "../models/User.model";
 import AppError from "../utils/appError";
+import { createNotification } from "./notification.service";
 
 interface CreateReviewInput {
   orderId: string;
@@ -221,6 +223,16 @@ export const addSellerReply = async (reviewId: string, sellerId: string, text: s
   };
 
   await review.save();
+
+  const seller = await User.findById(sellerId).select("name");
+  const sellerName = seller?.name || "Seller";
+
+  await createNotification(String(review.buyerId), {
+    type: "review_reply",
+    title: "Seller replied to your review",
+    message: `${sellerName} replied to your review.`,
+    link: "/orders",
+  });
 
   return review;
 };
