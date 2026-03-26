@@ -202,6 +202,27 @@ const getProductIdFromParams = (idParam: string | string[] | undefined): string 
 };
 
 /**
+ * Parse and validate positive integer query limit within a capped range.
+ */
+const parseLimitQuery = (
+  rawLimit: Request["query"]["limit"],
+  options: { min: number; max: number; defaultValue: number }
+) => {
+  if (rawLimit === undefined) {
+    return options.defaultValue;
+  }
+
+  const rawValue = Array.isArray(rawLimit) ? rawLimit[0] : rawLimit;
+  const parsed = Number.parseInt(String(rawValue), 10);
+
+  if (Number.isNaN(parsed) || parsed < options.min || parsed > options.max) {
+    throw new AppError(`limit must be an integer between ${options.min} and ${options.max}`, 400);
+  }
+
+  return parsed;
+};
+
+/**
  * Get paginated public product catalog.
  */
 export const getProducts = async (req: Request, res: Response, next: NextFunction) => {
@@ -276,6 +297,33 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
       totalPages,
       hasNextPage: parsedPage < totalPages,
       hasPrevPage: parsedPage > 1,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Get monthly most sold products for public homepage discovery.
+ */
+export const getMonthlyMostSoldProducts = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const limit = parseLimitQuery(req.query.limit, {
+      min: 1,
+      max: 40,
+      defaultValue: 8,
+    });
+
+    const result = await productService.getMonthlyMostSoldProducts(limit);
+
+    return sendSuccess(res, "Monthly most sold products fetched", {
+      products: result.products,
+      period: result.period,
+      total: result.total,
     });
   } catch (error) {
     return next(error);

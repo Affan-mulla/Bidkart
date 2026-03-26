@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import Order from "../models/Order.model";
 import Product, { IProductDocument } from "../models/Product.model";
 import AppError from "../utils/appError";
 
@@ -27,6 +28,41 @@ interface SellerStatsResult {
   outOfStockCount: number;
   recentProducts: IProductDocument[];
 }
+
+interface MonthlyMostSoldProduct {
+  _id: Types.ObjectId;
+  title: string;
+  images: string[];
+  basePrice: number;
+  category: string;
+  ratings: number;
+  reviewsCount: number;
+  stock: number;
+  sellerId: Types.ObjectId;
+  createdAt: Date;
+  totalUnitsSold: number;
+  totalRevenue: number;
+  ordersCount: number;
+}
+
+interface MonthlyMostSoldResult {
+  products: MonthlyMostSoldProduct[];
+  period: {
+    start: string;
+    end: string;
+  };
+  total: number;
+}
+
+const VALID_SALES_STATUSES = ["Confirmed", "Packed", "Shipped", "Delivered"] as const;
+
+/**
+ * Get the first moment of the current month in UTC.
+ */
+const getCurrentMonthStartUtc = () => {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+};
 
 /**
  * Validate required fields for product creation.
@@ -271,5 +307,92 @@ export const getSellerStats = async (sellerId: string): Promise<SellerStatsResul
     lowStockCount: stats.lowStockCount,
     outOfStockCount: stats.outOfStockCount,
     recentProducts,
+  };
+};
+
+/**
+ * Get public most sold products for the current month.
+ */
+export const getMonthlyMostSoldProducts = async (limit = 8): Promise<MonthlyMostSoldResult> => {
+  const parsedLimit = Math.max(1, Math.min(40, Number(limit) || 8));
+  const periodStart = getCurrentMonthStartUtc();
+  const periodEnd = new Date();
+
+  const aggregationRows = await Order.aggregate<{
+    products: MonthlyMostSoldProduct[];
+    meta: Array<{ total: number }>;
+  }>([
+    {
+      $match: {
+        createdAt: {
+          $gte: periodStart,
+          $lte: periodEnd,
+        },
+        // "Placed" is intentionally excluded to avoid counting tentative checkouts.
+        status: { $in: [...VALID_SALES_STATUSES] },
+      },
+    },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: "$items.productId",
+        totalUnitsSold: { $sum: "$items.quantity" },
+        totalRevenue: { $sum: "$items.itemTotal" },
+        orderIds: { $addToSet: "$_id" },
+      },
+    },
+    {
+      $lookup: {
+        from: "products",
+        localField: "_id",
+        foreignField: "_id",
+        as: "product",
+      },
+    },
+    { $unwind: "$product" },
+    {
+      $project: {
+        _id: "$product._id",
+        title: "$product.title",
+        images: "$product.images",
+        basePrice: "$product.basePrice",
+        category: "$product.category",
+        ratings: "$product.ratings",
+        reviewsCount: "$product.reviewsCount",
+        stock: "$product.stock",
+        sellerId: "$product.sellerId",
+        createdAt: "$product.createdAt",
+        totalUnitsSold: 1,
+        totalRevenue: 1,
+        ordersCount: { $size: "$orderIds" },
+      },
+    },
+    {
+      $facet: {
+        products: [
+          {
+            $sort: {
+              totalUnitsSold: -1,
+              totalRevenue: -1,
+              createdAt: -1,
+            },
+          },
+          { $limit: parsedLimit },
+        ],
+        meta: [{ $count: "total" }],
+      },
+    },
+  ]);
+
+  const result = aggregationRows[0] || { products: [], meta: [] };
+  const total = result.meta[0]?.total || 0;
+
+  return {
+    products: result.products,
+    period: {
+      start: periodStart.toISOString(),
+      end: periodEnd.toISOString(),
+    },
+    total,
   };
 };

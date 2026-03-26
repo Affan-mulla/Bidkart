@@ -321,7 +321,7 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
         to={to}
         end
         className={({ isActive }) =>
-          `px-3 py-1.5 rounded text-sm font-medium transition-all ${
+          `px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
             isActive
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"

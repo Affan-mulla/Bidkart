@@ -3,6 +3,7 @@ import {
 	createProduct,
 	deleteProduct,
 	getProductDetail,
+	getMonthlyMostSoldProducts,
 	getProducts,
 	getMyProducts,
 	getSellerStats,
@@ -17,6 +18,7 @@ const router = express.Router();
 router.get("/search", searchProducts);
 router.get("/seller/stats", protect, roleGuard("seller"), getSellerStats);
 router.get("/seller/mine", protect, roleGuard("seller"), getMyProducts);
+router.get("/most-sold-monthly", getMonthlyMostSoldProducts);
 router.get("/", getProducts);
 router.post("/", protect, roleGuard("seller"), uploadProductImages, createProduct);
 router.get("/:id", getProductDetail);

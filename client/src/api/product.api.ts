@@ -120,6 +120,21 @@ export interface GetProductsResponse {
   hasPrevPage: boolean;
 }
 
+export interface MonthlyMostSoldProduct extends CatalogProduct {
+  totalUnitsSold: number;
+  totalRevenue: number;
+  ordersCount: number;
+}
+
+export interface GetMonthlyMostSoldProductsResponse {
+  products: MonthlyMostSoldProduct[];
+  period: {
+    start: string;
+    end: string;
+  };
+  total: number;
+}
+
 /**
  * Fetches paginated catalog products with optional filters.
  */
@@ -133,6 +148,19 @@ export async function getProducts(params: GetProductsParams): Promise<GetProduct
       ...(params.maxPrice ? { maxPrice: params.maxPrice } : {}),
       ...(params.sort ? { sort: params.sort } : {}),
     },
+  });
+
+  return response.data?.data;
+}
+
+/**
+ * Fetches current month top-selling products for homepage listing.
+ */
+export async function getMonthlyMostSoldProducts(
+  limit = 8,
+): Promise<GetMonthlyMostSoldProductsResponse> {
+  const response = await axiosInstance.get("/products/most-sold-monthly", {
+    params: { limit },
   });
 
   return response.data?.data;
