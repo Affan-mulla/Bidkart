@@ -3,13 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowRight01Icon,
-  AuctionIcon,
+  BaseballBatIcon,
+  Book,
   CheckmarkCircle01Icon,
+  Clothes,
   CreditCardIcon,
   FilterIcon,
-  MapPinIcon,
+  KitchenUtensilsIcon,
   RotateClockwiseIcon,
-  ShoppingBag01Icon,
+  SmartAcIcon,
 } from "@hugeicons/core-free-icons";
 
 import {
@@ -24,12 +26,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CATEGORIES = [
-  { label: "Electronics", icon: FilterIcon },
-  { label: "Clothing", icon: ShoppingBag01Icon },
-  { label: "Books", icon: MapPinIcon },
-  { label: "Home & Kitchen", icon: CreditCardIcon },
-  { label: "Sports", icon: AuctionIcon },
-  { label: "Other", icon: CheckmarkCircle01Icon },
+  { label: "Electronics", icon: SmartAcIcon },
+  { label: "Clothing", icon: Clothes },
+  { label: "Books", icon: Book },
+  { label: "Home & Kitchen", icon: KitchenUtensilsIcon },
+  { label: "Sports", icon: BaseballBatIcon },
+  { label: "Other", icon: FilterIcon },
 ];
 
 const TRUST_SIGNALS = [
@@ -60,12 +62,6 @@ export default function Home() {
     queryKey: ["featuredProducts"],
     queryFn: () => getProducts({ limit: 10, sort: "newest" }),
   });
-
-  const mostSoldProductsQuery = useQuery({
-    queryKey: ["mostSoldProductsOfMonth"],
-    queryFn: () => getMonthlyMostSoldProducts(8),
-  });
-
   return (
     <main className="bg-background pb-12">
       <section className="border-b border-border/60 bg-[radial-gradient(circle_at_top,oklch(0.97_0.03_75)_0%,transparent_45%)]">

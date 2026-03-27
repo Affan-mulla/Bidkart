@@ -10,6 +10,7 @@ import { isEmailVerificationEnabled } from "@/config/features"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { registerBuyer } from "@/lib/auth.api"
+import { extractApiErrorMessage } from "@/lib/apiError"
 import { useAuthStore } from "@/store/useAuthStore"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
@@ -65,9 +66,7 @@ export default function BuyerRegisterForm() {
       toast.success("Account created successfully. You can now log in.")
       navigate("/login", { replace: true })
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to register buyer account right now."
-      toast.error(message)
+      toast.error(extractApiErrorMessage(error, "Unable to register buyer account right now."))
     } finally {
       setIsSubmitting(false)
     }

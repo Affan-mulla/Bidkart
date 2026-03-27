@@ -42,7 +42,65 @@ interface PlaceBidResult {
   autoBidPlaced?: IAuctionBid;
 }
 
+interface StoredAddress {
+  fullName?: unknown;
+  phone?: unknown;
+  addressLine1?: unknown;
+  addressLine2?: unknown;
+  city?: unknown;
+  state?: unknown;
+  pincode?: unknown;
+  isDefault?: unknown;
+}
+
 const MAX_BID_HISTORY = 500;
+
+/**
+ * Resolve a winner shipping address from user address book.
+ */
+const getWinnerShippingAddress = async (winnerId: Types.ObjectId) => {
+  const winner = await User.findById(winnerId).select("addresses");
+
+  if (!winner) {
+    return null;
+  }
+
+  const addresses = Array.isArray(winner.addresses)
+    ? (winner.addresses as StoredAddress[])
+    : [];
+
+  const hasRequiredFields = (address: StoredAddress) => {
+    const requiredValues = [
+      address.fullName,
+      address.phone,
+      address.addressLine1,
+      address.city,
+      address.state,
+      address.pincode,
+    ];
+
+    return requiredValues.every((value) => String(value || "").trim().length > 0);
+  };
+
+  const defaultAddress = addresses.find((address) => Boolean(address?.isDefault));
+  const selectedAddress = hasRequiredFields(defaultAddress || {})
+    ? defaultAddress
+    : addresses.find((address) => hasRequiredFields(address));
+
+  if (!selectedAddress) {
+    return null;
+  }
+
+  return {
+    fullName: String(selectedAddress.fullName).trim(),
+    phone: String(selectedAddress.phone).trim(),
+    addressLine1: String(selectedAddress.addressLine1).trim(),
+    addressLine2: String(selectedAddress.addressLine2 || "").trim(),
+    city: String(selectedAddress.city).trim(),
+    state: String(selectedAddress.state).trim(),
+    pincode: String(selectedAddress.pincode).trim(),
+  };
+};
 
 /**
  * Ensure string is a valid MongoDB ObjectId.
@@ -536,48 +594,49 @@ export const endAuction = async (auctionId: string): Promise<IAuctionDocument> =
   if (hasWinner && auction.currentBidderId) {
     auction.winnerId = auction.currentBidderId;
 
-    const winnerOrder = await Order.create({
-      buyerId: auction.currentBidderId,
-      items: [
-        {
-          productId: auction.productId,
-          sellerId: auction.sellerId,
-          title: auction.title,
-          image: auction.images[0] || "",
-          variantKey: "",
-          variantValue: "",
-          quantity: 1,
-          price: auction.currentBid,
-          itemTotal: auction.currentBid,
-        },
-      ],
-      shippingAddress: {
-        fullName: "",
-        phone: "",
-        addressLine1: "",
-        addressLine2: "",
-        city: "",
-        state: "",
-        pincode: "",
-      },
-      subtotal: auction.currentBid,
-      deliveryCharge: 0,
-      totalAmount: auction.currentBid,
-      status: "Placed",
-      paymentMethod: "Razorpay",
-      paymentStatus: "Pending",
-      cancelReason: "",
-    });
+    const shippingAddress = await getWinnerShippingAddress(auction.currentBidderId);
 
-    auction.winnerOrderId = winnerOrder._id as Types.ObjectId;
+    if (shippingAddress) {
+      const winnerOrder = await Order.create({
+        buyerId: auction.currentBidderId,
+        items: [
+          {
+            productId: auction.productId,
+            sellerId: auction.sellerId,
+            title: auction.title,
+            image: auction.images[0] || "",
+            variantKey: "",
+            variantValue: "",
+            quantity: 1,
+            price: auction.currentBid,
+            itemTotal: auction.currentBid,
+          },
+        ],
+        shippingAddress,
+        subtotal: auction.currentBid,
+        deliveryCharge: 0,
+        totalAmount: auction.currentBid,
+        status: "Placed",
+        paymentMethod: "Razorpay",
+        paymentStatus: "Pending",
+        cancelReason: "",
+      });
+
+      auction.winnerOrderId = winnerOrder._id as Types.ObjectId;
+    }
 
     await createNotification(String(auction.currentBidderId), {
       type: "auction_won",
       title: "You won the auction!",
-      message: `Congratulations! You won "${auction.title}" with a bid of ₹${auction.currentBid.toLocaleString("en-IN")}.`,
-      link: "/orders",
+      message: shippingAddress
+        ? `Congratulations! You won "${auction.title}" with a bid of ₹${auction.currentBid.toLocaleString("en-IN")}.`
+        : `You won "${auction.title}" with a bid of ₹${auction.currentBid.toLocaleString("en-IN")}. Add a delivery address to proceed with order processing.`,
+      link: shippingAddress ? "/orders" : "/profile",
     });
   }
+
+  // Guard against legacy negative counters so auction lifecycle save does not fail.
+  auction.views = Math.max(0, Number(auction.views) || 0);
 
   await auction.save();
 
@@ -639,7 +698,16 @@ export const endExpiredAuctions = async () => {
     endTime: { $lte: now },
   }).select("_id");
 
-  await Promise.all(expiredAuctions.map((auction) => endAuction(String(auction._id))));
+  const results = await Promise.allSettled(
+    expiredAuctions.map((auction) => endAuction(String(auction._id)))
+  );
+
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      const failedAuctionId = String(expiredAuctions[index]?._id || "unknown");
+      console.error(`Failed to end auction ${failedAuctionId}:`, result.reason);
+    }
+  });
 };
 
 /**
@@ -852,7 +920,13 @@ export const incrementViews = async (auctionId: string) => {
 export const decrementViews = async (auctionId: string) => {
   ensureObjectId(auctionId, "Invalid auction id");
 
-  await Auction.findByIdAndUpdate(auctionId, {
-    $inc: { views: -1 },
-  });
+  await Auction.findOneAndUpdate(
+    {
+      _id: new Types.ObjectId(auctionId),
+      views: { $gt: 0 },
+    },
+    {
+      $inc: { views: -1 },
+    }
+  );
 };

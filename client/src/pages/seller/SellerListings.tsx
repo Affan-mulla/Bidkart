@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ImageIcon, PackageOpen, Pencil, Plus, Trash2 } from "lucide-react"
+import { ImageIcon, PackageOpen, Pencil, Trash2 } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import {
@@ -19,7 +19,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { extractApiErrorMessage } from "@/lib/apiError"
 import { toast } from "sonner"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { AddCircleFreeIcons } from "@hugeicons/core-free-icons"
 
 const rupeeFormatter = new Intl.NumberFormat("en-IN")
 
@@ -47,7 +50,7 @@ export default function SellerListings() {
       toast.success("Product deleted")
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Could not delete product")
+      toast.error(extractApiErrorMessage(error, "Could not delete product"))
     },
   })
 
@@ -68,7 +71,8 @@ export default function SellerListings() {
           </div>
 
           <Button variant="form" className="h-9" onClick={() => setIsCreateOpen(true)}>
-            ＋ Add Product
+              <HugeiconsIcon icon={AddCircleFreeIcons} className="size-4" />
+             Add Product
           </Button>
         </header>
 
@@ -113,7 +117,8 @@ export default function SellerListings() {
                 <p className="mt-4 text-base text-gray-500">No products yet</p>
                 <p className="mt-1 text-sm text-gray-400">Add your first product to get started</p>
                 <Button variant="form" className="mt-5 h-9" onClick={() => setIsCreateOpen(true)}>
-                  ＋ Add Product
+                  <HugeiconsIcon icon={AddCircleFreeIcons} className="size-4" />
+                  Add Product
                 </Button>
               </div>
             ) : (

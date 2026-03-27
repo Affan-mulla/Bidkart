@@ -6,6 +6,7 @@ import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
 import { forgotPassword } from "@/lib/auth.api"
+import { extractApiErrorMessage } from "@/lib/apiError"
 import { useAuthStore } from "@/store/useAuthStore"
 
 const forgotSchema = z.object({
@@ -46,7 +47,7 @@ export default function ForgotPasswordPage() {
         navigate("/reset-password")
       }, 2000)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not start reset flow.")
+      setMessage(extractApiErrorMessage(error, "Could not start reset flow."))
       setIsSuccess(false)
     } finally {
       setIsSubmitting(false)

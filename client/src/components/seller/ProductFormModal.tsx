@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { extractApiErrorMessage } from "@/lib/apiError"
 
 const categories = ["Electronics", "Clothing", "Books", "Home & Kitchen", "Sports", "Other"] as const
 
@@ -184,7 +185,7 @@ export default function ProductFormModal({
       toast.success(mode === "create" ? "Product created!" : "Product updated!")
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Could not save product")
+      toast.error(extractApiErrorMessage(error, "Could not save product"))
     },
   })
 

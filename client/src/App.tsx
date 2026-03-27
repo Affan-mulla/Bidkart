@@ -1,5 +1,5 @@
 import AuthInitializer from "@/components/AuthInitializer"
-import { Toaster as Sonner } from "sonner"
+import { Toaster  } from "sonner"
 import AppRoutes from "./routes"
 
 const App = () => {
@@ -7,7 +7,7 @@ const App = () => {
     <>
       <AuthInitializer />
       <AppRoutes/>
-      <Sonner richColors position="top-right" />
+      <Toaster richColors  position="bottom-right" />
     </>
   )
 }

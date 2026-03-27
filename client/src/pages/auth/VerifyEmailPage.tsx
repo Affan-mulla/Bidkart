@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import OtpInput from "@/components/auth/OtpInput"
 import { Button } from "@/components/ui/button"
 import { resendOtp, verifyEmail } from "@/lib/auth.api"
+import { extractApiErrorMessage } from "@/lib/apiError"
 import { useAuthStore } from "@/store/useAuthStore"
 
 const RESEND_WAIT_SECONDS = 60
@@ -73,8 +74,7 @@ export default function VerifyEmailPage() {
       toast.success("Email verified! Please log in.")
       navigate("/login", { replace: true })
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Verification failed."
-      toast.error(message)
+      toast.error(extractApiErrorMessage(error, "Verification failed."))
       hasAutoSubmittedRef.current = false
     } finally {
       setIsSubmitting(false)
@@ -102,8 +102,7 @@ export default function VerifyEmailPage() {
       setCounter(RESEND_WAIT_SECONDS)
       toast.success("A new verification code has been sent.")
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not resend OTP."
-      toast.error(message)
+      toast.error(extractApiErrorMessage(error, "Could not resend OTP."))
     }
   }
 

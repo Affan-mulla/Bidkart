@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { registerSeller } from "@/lib/auth.api"
+import { extractApiErrorMessage } from "@/lib/apiError"
 import { useAuthStore } from "@/store/useAuthStore"
 
 const sellerRegisterSchema = z
@@ -72,9 +73,7 @@ export default function SellerRegisterForm() {
       toast.success("Seller account created successfully. You can now log in.")
       navigate("/login", { replace: true })
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to register seller account right now."
-      toast.error(message)
+      toast.error(extractApiErrorMessage(error, "Unable to register seller account right now."))
     } finally {
       setIsSubmitting(false)
     }

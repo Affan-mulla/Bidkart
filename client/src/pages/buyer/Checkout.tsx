@@ -2,7 +2,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { CheckmarkCircle01Icon, CreditCardIcon, MapPinIcon, RotateClockwiseIcon } from "@hugeicons/core-free-icons";
-import { AxiosError } from "axios";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -30,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { extractApiErrorMessage } from "@/lib/apiError";
 import { loadRazorpayScript, openRazorpayCheckout } from "@/lib/razorpay";
 import { useCartStore } from "@/store/cartStore";
 
@@ -230,8 +230,7 @@ export default function Checkout() {
         }
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Something went wrong.";
-      toast.error(message);
+      toast.error(extractApiErrorMessage(error, "Something went wrong."));
     } finally {
       setIsProcessingPayment(false);
     }
@@ -253,14 +252,7 @@ export default function Checkout() {
       toast.success(`${validatedCoupon.couponCode} applied successfully.`);
     } catch (error) {
       const fallbackMessage = "Unable to apply coupon. Please try again.";
-      if (error instanceof AxiosError) {
-        const errorMessage = (error.response?.data as { message?: string } | undefined)?.message;
-        toast.error(errorMessage || fallbackMessage);
-      } else if (error instanceof Error) {
-        toast.error(error.message || fallbackMessage);
-      } else {
-        toast.error(fallbackMessage);
-      }
+      toast.error(extractApiErrorMessage(error, fallbackMessage));
     } finally {
       setIsCouponLoading(false);
     }

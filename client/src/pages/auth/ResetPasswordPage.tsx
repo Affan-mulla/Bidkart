@@ -9,6 +9,7 @@ import OtpInput from "@/components/auth/OtpInput"
 import PasswordInput from "@/components/auth/PasswordInput"
 import { Button } from "@/components/ui/button"
 import { resetPassword } from "@/lib/auth.api"
+import { extractApiErrorMessage } from "@/lib/apiError"
 import { useAuthStore } from "@/store/useAuthStore"
 
 const resetSchema = z
@@ -78,8 +79,7 @@ export default function ResetPasswordPage() {
       toast.success("Password reset! Please log in.")
       navigate("/login", { replace: true })
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not reset password."
-      toast.error(message)
+      toast.error(extractApiErrorMessage(error, "Could not reset password."))
     } finally {
       setIsSubmitting(false)
     }

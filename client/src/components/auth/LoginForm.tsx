@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { loginUser } from "@/lib/auth.api"
+import { extractApiErrorMessage } from "@/lib/apiError"
 import { useAuthStore } from "@/store/useAuthStore"
 
 const loginSchema = z.object({
@@ -59,9 +60,7 @@ export default function LoginForm() {
 
       navigate(roleRouteMap[user.role], { replace: true })
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to log in. Please check your credentials."
-      toast.error(message)
+      toast.error(extractApiErrorMessage(error, "Unable to log in. Please check your credentials."))
     } finally {
       setIsSubmitting(false)
     }
