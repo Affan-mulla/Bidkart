@@ -114,10 +114,6 @@ const reviewSchema = new Schema<IReview>(
   }
 );
 
-reviewSchema.index({ productId: 1 });
-reviewSchema.index({ buyerId: 1 });
-reviewSchema.index({ orderId: 1 }, { unique: true });
-
 const Review = model<IReview>("Review", reviewSchema);
 
 export default Review;

@@ -338,7 +338,7 @@ export default function ProductFormModal({
                 id="images"
                 type="file"
                 multiple
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp, image/avif"
                 onChange={(event) => {
                   const files = Array.from(event.target.files ?? [])
                   setSelectedFiles(files)

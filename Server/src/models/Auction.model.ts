@@ -219,11 +219,6 @@ const auctionSchema = new Schema<IAuction>(
   }
 );
 
-auctionSchema.index({ status: 1 });
-auctionSchema.index({ sellerId: 1 });
-auctionSchema.index({ endTime: 1 });
-auctionSchema.index({ startTime: 1 });
-
 const Auction = model<IAuction>("Auction", auctionSchema);
 
 export default Auction;
