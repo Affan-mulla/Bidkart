@@ -17,6 +17,17 @@ const PERIOD_DAYS: Record<RevenuePeriod, number> = {
 };
 
 /**
+ * Return yyyy-mm-dd from a date using UTC fields.
+ */
+const toUtcDateLabel = (date: Date) => {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+/**
  * Validate and convert id string to ObjectId.
  */
 const toObjectId = (value: string, message: string) => {
@@ -31,15 +42,15 @@ const toObjectId = (value: string, message: string) => {
  * Build inclusive day labels and data from aggregated revenue rows.
  */
 const buildContinuousSeries = (startDate: Date, days: number, rows: RevenuePoint[]) => {
-  const revenueByDay = new Map(rows.map((row) => [row._id, row.revenue]));
+  const revenueByDay = new Map(rows.map((row) => [row._id, Number(row.revenue || 0)]));
   const labels: string[] = [];
   const data: number[] = [];
 
   for (let dayIndex = 0; dayIndex < days; dayIndex += 1) {
     const current = new Date(startDate);
-    current.setDate(startDate.getDate() + dayIndex);
+    current.setUTCDate(startDate.getUTCDate() + dayIndex);
 
-    const label = current.toISOString().slice(0, 10);
+    const label = toUtcDateLabel(current);
     labels.push(label);
     data.push(revenueByDay.get(label) || 0);
   }
@@ -90,11 +101,11 @@ export const getRevenueData = async (sellerId: string, period: RevenuePeriod) =>
 
   const endCurrent = new Date();
   const startCurrent = new Date(endCurrent);
-  startCurrent.setHours(0, 0, 0, 0);
-  startCurrent.setDate(startCurrent.getDate() - (days - 1));
+  startCurrent.setUTCHours(0, 0, 0, 0);
+  startCurrent.setUTCDate(startCurrent.getUTCDate() - (days - 1));
 
   const startPrevious = new Date(startCurrent);
-  startPrevious.setDate(startPrevious.getDate() - days);
+  startPrevious.setUTCDate(startPrevious.getUTCDate() - days);
 
   const [currentRows, previousRows] = await Promise.all([
     aggregateRevenueByDay(sellerObjectId, startCurrent, endCurrent),

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import {
   ArrowUpRight01Icon,
   AuctionIcon,
@@ -28,8 +28,6 @@ import {
   getOrderSummary,
   getRevenueData,
   getTopProducts,
-  type OrderSummary,
-  type TopProduct,
 } from "@/api/analytics.api"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -52,6 +50,26 @@ const orderStatusColors: Record<string, string> = {
   Cancelled: "#dc2626",
   Confirmed: "#6b7280",
   Packed: "#9ca3af",
+}
+
+/**
+ * Recharts tooltip value may be number, string, tuple, or undefined.
+ */
+function toNumericTooltipValue(value: unknown): number {
+  if (typeof value === "number") {
+    return value
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  if (Array.isArray(value) && value.length > 0) {
+    return toNumericTooltipValue(value[0])
+  }
+
+  return 0
 }
 
 /**
@@ -221,7 +239,7 @@ export default function SellerAnalytics() {
                       tickFormatter={(value: number) => `₹${numberFormatter.format(value)}`}
                     />
                     <Tooltip
-                      formatter={(value: number) => currencyFormatter.format(value)}
+                      formatter={(value) => currencyFormatter.format(toNumericTooltipValue(value)) || "₹0"}
                       contentStyle={{ borderRadius: 10, borderColor: "#e5e7eb" }}
                     />
                     <Line type="monotone" dataKey="value" stroke="#9b2c2c" strokeWidth={2.5} dot={{ r: 3 }} />
@@ -258,7 +276,7 @@ export default function SellerAnalytics() {
                           <Cell key={entry.name} fill={orderStatusColors[entry.name] || "#9ca3af"} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: number) => numberFormatter.format(value)} />
+                      <Tooltip formatter={(value) => numberFormatter.format(toNumericTooltipValue(value))} />
                       <Legend verticalAlign="bottom" height={36} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -291,7 +309,7 @@ export default function SellerAnalytics() {
                         />
                         <YAxis dataKey="shortTitle" type="category" tick={{ fill: "#6b7280", fontSize: 12 }} width={126} />
                         <Tooltip
-                          formatter={(value: number) => currencyFormatter.format(value)}
+                          formatter={(value) => currencyFormatter.format(toNumericTooltipValue(value))}
                           contentStyle={{ borderRadius: 10, borderColor: "#e5e7eb" }}
                         />
                         <Bar dataKey="totalRevenue" fill="#9b2c2c" radius={[0, 6, 6, 0]} />
@@ -344,7 +362,7 @@ function KpiCard({
   value,
   growth,
 }: {
-  icon: unknown
+  icon: IconSvgElement
   label: string
   value: string
   growth?: number

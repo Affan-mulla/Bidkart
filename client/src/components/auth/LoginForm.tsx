@@ -5,7 +5,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { z } from "zod"
 
-import GoogleAuthButton from "@/components/auth/GoogleAuthButton"
 import PasswordInput from "@/components/auth/PasswordInput"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -108,8 +107,6 @@ export default function LoginForm() {
           or
         </span>
       </div>
-
-      <GoogleAuthButton />
 
       <p className="text-center text-sm text-muted-foreground">
         New to BidKart?{" "}
