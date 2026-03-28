@@ -7,6 +7,7 @@ import AutoBidModal from "@/components/auction/AutoBidModal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
+import { Spinner } from "../ui/spinner"
 
 type BidFormProps = {
   auctionId: string
@@ -79,6 +80,7 @@ export default function BidForm({
         <Input
           type="number"
           min={minBid}
+          step={1}
           value={amount}
           onChange={(event) => setAmount(Number(event.target.value || 0))}
           className="mt-2"
@@ -90,10 +92,12 @@ export default function BidForm({
       <Button
         type="button"
         className="w-full"
+        variant={"form"}
+        size={"lg"}
         disabled={!isLive || isPending}
         onClick={() => handlePlaceBid(amount)}
       >
-        {isPending ? "Submitting..." : "Place Bid"}
+        {isPending ? <><Spinner /> Submitting...</> : "Place Bid"}
       </Button>
 
       {buyItNowPrice && onBuyNow ? (

@@ -54,6 +54,7 @@ interface StoredAddress {
 }
 
 const MAX_BID_HISTORY = 500;
+const BID_INCREMENT = 1;
 
 /**
  * Resolve a winner shipping address from user address book.
@@ -111,12 +112,7 @@ const ensureObjectId = (id: string, message: string) => {
   }
 };
 
-/**
- * Compute the minimum increment based on current bid.
- */
-const getMinIncrement = (currentBid: number) => {
-  return Math.max(10, Math.ceil(currentBid * 0.01));
-};
+
 
 /**
  * Build safe public auction response.
@@ -272,10 +268,9 @@ export const getAuctionById = async (auctionId: string) => {
 const upsertAutoBid = async (
   auctionId: Types.ObjectId,
   bidderId: Types.ObjectId,
-  maxAutoBid: number,
-  basePrice: number
+  maxAutoBid: number
 ) => {
-  const incrementAmount = Math.max(10, Math.ceil(basePrice * 0.01));
+  const incrementAmount = BID_INCREMENT;
 
   const updatedExisting = await Auction.findOneAndUpdate(
     {
@@ -464,9 +459,8 @@ export const placeBid = async (
     throw new AppError("You are already the highest bidder", 400);
   }
 
-  const minIncrement = getMinIncrement(auction.currentBid);
-  if (amount <= auction.currentBid + minIncrement) {
-    throw new AppError(`Bid must be greater than current bid + ${minIncrement}`, 400);
+  if (amount < auction.currentBid + BID_INCREMENT) {
+    throw new AppError(`Bid must be at least current bid + ${BID_INCREMENT}`, 400);
   }
 
   if (maxAutoBid !== undefined) {
@@ -477,8 +471,7 @@ export const placeBid = async (
     await upsertAutoBid(
       auction._id as Types.ObjectId,
       new Types.ObjectId(bidderId),
-      maxAutoBid,
-      auction.startPrice
+      maxAutoBid
     );
   }
 

@@ -102,10 +102,7 @@ function AuctionDetailContent({ auction, auctionId }: { auction: Auction; auctio
 
   const socketState = useAuctionSocket(auctionId, auction, token)
 
-  const minBid = useMemo(
-    () => socketState.currentBid + Math.max(10, Math.ceil(socketState.currentBid * 0.01)),
-    [socketState.currentBid],
-  )
+  const minBid = useMemo(() => socketState.currentBid + 1, [socketState.currentBid])
 
   useEffect(() => {
     if (!user?._id) {
