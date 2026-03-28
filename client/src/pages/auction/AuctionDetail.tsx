@@ -83,6 +83,7 @@ function AuctionDetailContent({ auction, auctionId }: { auction: Auction; auctio
   const navigate = useNavigate()
 
   const user = useAuthStore((state) => state.user)
+  const isSeller = useAuthStore((state) => state.role) === "seller"
   const token = useAuthStore((state) => state.token || state.accessToken || undefined)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
@@ -101,6 +102,7 @@ function AuctionDetailContent({ auction, auctionId }: { auction: Auction; auctio
   }, [auction.watchers, user])
 
   const socketState = useAuctionSocket(auctionId, auction, token)
+  const { winnerOrderId } = socketState
 
   const minBid = useMemo(() => socketState.currentBid + 1, [socketState.currentBid])
 
@@ -203,17 +205,25 @@ function AuctionDetailContent({ auction, auctionId }: { auction: Auction; auctio
               </p>
             </div>
 
-            <BidForm
-              auctionId={auction._id}
-              currentBid={socketState.currentBid}
-              minBid={minBid}
-              isAuthenticated={isAuthenticated}
-              onPlaceBid={placeBid}
-              onBuyNow={auction.buyItNowPrice ? buyNow : undefined}
-              buyItNowPrice={auction.buyItNowPrice}
-              isLive={isLive}
-              isPending={isSubmittingBid}
-            />
+            {isSeller ? (
+              <div className="rounded-lg border border-border bg-muted/30 p-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Sellers cannot bid on auctions.
+                </p>
+              </div>
+            ) : (
+              <BidForm
+                auctionId={auction._id}
+                currentBid={socketState.currentBid}
+                minBid={minBid}
+                isAuthenticated={isAuthenticated}
+                onPlaceBid={placeBid}
+                onBuyNow={auction.buyItNowPrice ? buyNow : undefined}
+                buyItNowPrice={auction.buyItNowPrice}
+                isLive={isLive}
+                isPending={isSubmittingBid}
+              />
+            )}
 
             <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 p-3">
               <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
@@ -273,7 +283,7 @@ function AuctionDetailContent({ auction, auctionId }: { auction: Auction; auctio
 
           <DialogFooter>
             <Button asChild>
-              <Link to="/orders">
+              <Link to={winnerOrderId ? `/orders/${winnerOrderId}` : "/orders"}>
                 <HugeiconsIcon icon={ShoppingBag01Icon} className="size-4" />
                 View Your Order
               </Link>

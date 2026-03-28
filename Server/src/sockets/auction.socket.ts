@@ -22,6 +22,14 @@ interface BuyNowPayload {
   auctionId: string;
 }
 
+interface AuctionEndedPayload {
+  auctionId: string;
+  winnerId?: string | null;
+  winningBid: number;
+  productTitle: string;
+  winnerOrderId?: string | null;
+}
+
 /**
  * Register all real-time auction events for a socket connection.
  */
@@ -122,12 +130,15 @@ export const registerAuctionHandlers = (io: SocketServer, socket: Socket) => {
 
       const auction = await buyItNow(payload.auctionId, userId);
 
-      io.to(payload.auctionId).emit("auction:ended", {
+      const endedPayload: AuctionEndedPayload = {
         auctionId: payload.auctionId,
         winnerId: auction.winnerId ? String(auction.winnerId) : null,
         winningBid: auction.currentBid,
         productTitle: auction.title,
-      });
+        winnerOrderId: auction.winnerOrderId ? String(auction.winnerOrderId) : null,
+      };
+
+      io.to(payload.auctionId).emit("auction:ended", endedPayload);
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Unable to complete buy now";
 

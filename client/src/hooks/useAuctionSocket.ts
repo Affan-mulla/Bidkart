@@ -10,6 +10,7 @@ type AuctionEndedPayload = {
   winnerId: string | null
   winningBid: number
   productTitle?: string
+  winnerOrderId?: string | null
 }
 
 type AuctionBidPlacedPayload = {
@@ -47,6 +48,7 @@ interface UseAuctionSocketReturn {
   auctionStatus: Auction["status"]
   endTime: Date
   isConnected: boolean
+  winnerOrderId: string | null
   placeBid: (amount: number, maxAutoBid?: number) => void
   buyNow: () => void
   lastBidError: string | null
@@ -69,6 +71,7 @@ export function useAuctionSocket(
   const [auctionStatus, setAuctionStatus] = useState<Auction["status"]>(initialAuction.status)
   const [endTime, setEndTime] = useState<Date>(new Date(initialAuction.endTime))
   const [isConnected, setIsConnected] = useState(false)
+  const [winnerOrderId, setWinnerOrderId] = useState<string | null>(null)
   const [lastBidError, setLastBidError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -78,6 +81,7 @@ export function useAuctionSocket(
     setViewerCount(initialAuction.views || 0)
     setAuctionStatus(initialAuction.status)
     setEndTime(new Date(initialAuction.endTime))
+    setWinnerOrderId(null)
   }, [initialAuction])
 
   const socket = useMemo(() => getSocket(accessToken), [accessToken])
@@ -142,6 +146,7 @@ export function useAuctionSocket(
       }
 
       if (payload.winnerId === currentUserId) {
+        setWinnerOrderId(payload.winnerOrderId ?? null)
         toast.success("You won this auction")
       } else {
         toast.info("Auction ended. Better luck in the next one.")
@@ -214,6 +219,7 @@ export function useAuctionSocket(
     auctionStatus,
     endTime,
     isConnected,
+    winnerOrderId,
     placeBid,
     buyNow,
     lastBidError,

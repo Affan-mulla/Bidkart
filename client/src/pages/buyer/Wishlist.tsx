@@ -115,7 +115,7 @@ export default function Wishlist() {
                           void addCartMutation.mutateAsync(item._id)
                         }}
                         disabled={addCartMutation.isPending}
-                        variant={"form"}
+                        
                         size={"lg"}
                       >
                         Add to Cart

@@ -97,7 +97,7 @@ export default function LoginForm() {
           {errors.password ? <p className="text-xs text-destructive">{errors.password.message}</p> : null}
         </div>
 
-        <Button type="submit" disabled={isSubmitting} className="h-9 w-full " variant={"form"} size="lg">
+        <Button type="submit" disabled={isSubmitting} className="h-9 w-full "  size="lg">
           {isSubmitting ? "Signing in..." : "Sign in"}
         </Button>
       </form>

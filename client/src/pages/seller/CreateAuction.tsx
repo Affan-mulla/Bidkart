@@ -300,7 +300,7 @@ export default function CreateAuction() {
 
         <div className="flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => navigate("/seller/listings")} size={"lg"}>Cancel</Button>
-          <Button type="submit" disabled={createMutation.isPending} variant={"form"} size={"lg"}>
+          <Button type="submit" disabled={createMutation.isPending}  size={"lg"}>
             {createMutation.isPending ? <><Spinner/> Creating...</> : "Create Auction"}
           </Button>
         </div>

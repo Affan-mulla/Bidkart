@@ -46,6 +46,7 @@ export interface IOrder {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  paymentDeadline?: Date;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;
@@ -211,6 +212,10 @@ const orderSchema = new Schema<IOrder>(
       type: String,
       enum: ["Pending", "Paid", "Refunded"],
       default: "Pending",
+    },
+    paymentDeadline: {
+      type: Date,
+      default: null,
     },
     razorpayOrderId: {
       type: String,

@@ -261,7 +261,7 @@ export default function Cart() {
 
                 navigate("/checkout");
               }}
-              variant={"form"}
+              
               size={"lg"}
             >
               Proceed to Checkout

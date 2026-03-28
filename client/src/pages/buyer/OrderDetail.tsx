@@ -6,6 +6,7 @@ import {
   ArrowLeft01Icon,
   Cancel01Icon,
   Clock01Icon,
+  CreditCardIcon,
   DeliveryBox01Icon,
   Download01Icon,
   MapPinIcon,
@@ -14,6 +15,7 @@ import {
 import { toast } from "sonner";
 
 import { cancelOrder, getBuyerOrderById, type Order } from "@/api/order.api";
+import { createRazorpayOrder, verifyPayment } from "@/api/payment.api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/lib/axios";
+import { loadRazorpayScript, openRazorpayCheckout } from "@/lib/razorpay";
 
 const ORDER_STEPS: Array<Order["status"]> = ["Placed", "Confirmed", "Packed", "Shipped", "Delivered"];
 
@@ -46,6 +49,7 @@ export default function OrderDetail() {
   const queryClient = useQueryClient();
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const orderQuery = useQuery({
     queryKey: ["buyerOrder", id],
@@ -120,7 +124,60 @@ export default function OrderDetail() {
     }
   };
 
+  const handlePayNow = async () => {
+    if (!order) return;
+    try {
+      setIsProcessingPayment(true);
+
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        toast.error("Could not load payment gateway. Please try again.");
+        return;
+      }
+
+      const { razorpayOrderId, amount, keyId } = await createRazorpayOrder(order._id);
+
+      const paymentResponse = await openRazorpayCheckout({
+        key: keyId,
+        amount,
+        currency: "INR",
+        name: "BidKart",
+        description: `Auction Win - Order #${order._id.slice(-8).toUpperCase()}`,
+        order_id: razorpayOrderId,
+        prefill: {
+          name: order.shippingAddress.fullName,
+          contact: order.shippingAddress.phone,
+        },
+        theme: { color: "#9b2c2c" },
+      });
+
+      await verifyPayment({
+        orderId: order._id,
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["buyerOrder", id] });
+      queryClient.invalidateQueries({ queryKey: ["buyerOrders"] });
+      toast.success("Payment successful! Your order is confirmed.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message === "Payment cancelled") {
+        toast.info("Payment cancelled.");
+      } else {
+        toast.error("Payment failed. Please try again.");
+      }
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   const canCancel = order.status === "Placed" || order.status === "Confirmed";
+  const canPayNow =
+    order.paymentMethod === "Razorpay" &&
+    order.paymentStatus === "Pending" &&
+    order.status === "Placed";
   const canDownloadInvoice =
     order.paymentStatus === "Paid" ||
     (order.paymentMethod === "COD" && order.status === "Delivered");
@@ -286,6 +343,34 @@ export default function OrderDetail() {
                 <HugeiconsIcon icon={Download01Icon} className="size-4" />
                 Download Invoice
               </Button>
+            ) : null}
+
+            {canPayNow ? (
+              <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Payment Required</p>
+                  {order.paymentDeadline ? (
+                    <p className="text-xs text-amber-700">
+                      Pay before:{" "}
+                      {new Date(order.paymentDeadline).toLocaleString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+                <Button
+                  className="w-full bg-[#9b2c2c] text-white hover:bg-[#7f2323]"
+                  onClick={() => void handlePayNow()}
+                  disabled={isProcessingPayment}
+                >
+                  <HugeiconsIcon icon={CreditCardIcon} className="size-4" />
+                  {isProcessingPayment ? "Opening Payment..." : "Pay Now"}
+                </Button>
+              </div>
             ) : null}
           </CardContent>
         </Card>

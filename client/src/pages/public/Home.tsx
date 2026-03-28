@@ -85,7 +85,7 @@ export default function Home() {
               <Button
                 size="lg"
                 onClick={() => navigate("/products")}
-                variant={"form"}
+                
               >
                 Browse Products
               </Button>

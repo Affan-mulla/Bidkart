@@ -94,7 +94,7 @@ export default function Orders() {
           <CardContent className="flex flex-col items-center justify-center gap-4 py-14 text-center">
             <HugeiconsIcon icon={ShoppingBag01Icon} className="size-14 text-muted-foreground" />
             <p className="text-lg font-medium text-foreground">No orders yet</p>
-            <Button onClick={() => navigate("/products")}>Start Shopping</Button>
+            <Button onClick={() => navigate("/products")} size={"lg"}>Start Shopping</Button>
           </CardContent>
         </Card>
       ) : null}
@@ -119,6 +119,17 @@ export default function Orders() {
                   <Badge variant="outline" className={getStatusBadgeClass(order.status)}>
                     {order.status}
                   </Badge>
+
+                  {order.paymentMethod === "Razorpay" &&
+                  order.paymentStatus === "Pending" &&
+                  order.status === "Placed" ? (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-300 bg-amber-50 text-amber-700 animate-pulse"
+                    >
+                      Payment Required
+                    </Badge>
+                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-2">

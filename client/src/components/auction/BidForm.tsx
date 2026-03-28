@@ -92,7 +92,7 @@ export default function BidForm({
       <Button
         type="button"
         className="w-full"
-        variant={"form"}
+        
         size={"lg"}
         disabled={!isLive || isPending}
         onClick={() => handlePlaceBid(amount)}

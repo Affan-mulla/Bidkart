@@ -33,6 +33,7 @@ export interface Order {
   status: "Placed" | "Confirmed" | "Packed" | "Shipped" | "Delivered" | "Cancelled";
   paymentMethod: "COD" | "Razorpay";
   paymentStatus: "Pending" | "Paid" | "Refunded";
+  paymentDeadline?: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   invoiceNumber?: string;

@@ -244,7 +244,7 @@ export default function BuyerNavbar() {
                 </Button>
               </Link>
               <Link to="/register">
-                <Button size="lg" variant="form" className="">
+                <Button size="lg">
                   Sign up
                 </Button>
               </Link>

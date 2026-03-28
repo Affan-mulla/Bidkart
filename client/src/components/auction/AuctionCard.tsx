@@ -62,7 +62,7 @@ export default function AuctionCard({ auction }: { auction: Auction }) {
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <Button variant={"form"} type="button" className="flex-1" disabled={auction.status !== "live"}>
+            <Button  type="button" className="flex-1" disabled={auction.status !== "live"}>
               Place Bid
             </Button>
             {auction.buyItNowPrice ? (

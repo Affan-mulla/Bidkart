@@ -6,6 +6,7 @@ import Auction, {
   IAuctionDocument,
 } from "../models/Auction.model";
 import Order from "../models/Order.model";
+import Product from "../models/Product.model";
 import User from "../models/User.model";
 import AppError from "../utils/appError";
 import { io } from "../sockets";
@@ -451,6 +452,10 @@ export const placeBid = async (
     throw new AppError("Auction is not live", 400);
   }
 
+  if (String(auction.sellerId) === bidderId) {
+    throw new AppError("Sellers cannot bid on their own auctions", 403);
+  }
+
   if (auction.endTime.getTime() <= now.getTime()) {
     throw new AppError("Auction already ended", 400);
   }
@@ -612,6 +617,7 @@ export const endAuction = async (auctionId: string): Promise<IAuctionDocument> =
         status: "Placed",
         paymentMethod: "Razorpay",
         paymentStatus: "Pending",
+        paymentDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
         cancelReason: "",
       });
 
@@ -638,9 +644,46 @@ export const endAuction = async (auctionId: string): Promise<IAuctionDocument> =
     winnerId: auction.winnerId ? String(auction.winnerId) : null,
     winningBid: auction.currentBid,
     productTitle: auction.title,
+    winnerOrderId: auction.winnerOrderId ? String(auction.winnerOrderId) : null,
   });
 
   return auction;
+};
+
+/**
+ * Cancel unpaid auction winner orders that exceeded payment deadline.
+ */
+export const cancelExpiredAuctionOrders = async () => {
+  const now = new Date();
+
+  const expiredOrders = await Order.find({
+    paymentMethod: "Razorpay",
+    paymentStatus: "Pending",
+    status: "Placed",
+    paymentDeadline: { $ne: null, $lte: now },
+  });
+
+  for (const order of expiredOrders) {
+    order.status = "Cancelled";
+    order.cancelReason = "Payment not completed within 24 hours";
+    await order.save();
+
+    await Promise.all(
+      order.items.map((item) =>
+        Product.findByIdAndUpdate(item.productId, {
+          $inc: { stock: item.quantity },
+        })
+      )
+    );
+
+    await createNotification(String(order.buyerId), {
+      type: "order_update",
+      title: "Auction Order Cancelled",
+      message:
+        "Your won auction order was cancelled because payment was not completed within 24 hours.",
+      link: `/orders/${String(order._id)}`,
+    });
+  }
 };
 
 /**
@@ -744,6 +787,10 @@ export const buyItNow = async (auctionId: string, buyerId: string) => {
 
   if (!auction) {
     throw new AppError("Auction not found", 404);
+  }
+
+  if (String(auction.sellerId) === buyerId) {
+    throw new AppError("Sellers cannot use buy-it-now on their own auctions", 403);
   }
 
   if (auction.status !== "live") {
