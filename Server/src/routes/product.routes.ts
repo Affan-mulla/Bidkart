@@ -2,6 +2,7 @@ import express from "express";
 import {
 	createProduct,
 	deleteProduct,
+	exportSellerProducts,
 	getProductDetail,
 	getMonthlyMostSoldProducts,
 	getProducts,
@@ -17,6 +18,7 @@ const router = express.Router();
 
 router.get("/search", searchProducts);
 router.get("/seller/stats", protect, roleGuard("seller"), getSellerStats);
+router.get("/seller/export", protect, roleGuard("seller"), exportSellerProducts);
 router.get("/seller/mine", protect, roleGuard("seller"), getMyProducts);
 router.get("/most-sold-monthly", getMonthlyMostSoldProducts);
 router.get("/", getProducts);

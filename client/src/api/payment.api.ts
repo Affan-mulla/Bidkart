@@ -40,3 +40,10 @@ export async function createRazorpayOrder(
 export async function verifyPayment(payload: VerifyPaymentPayload): Promise<void> {
   await axiosInstance.post("/payments/verify", payload);
 }
+
+/**
+ * Confirms Razorpay payment in demo mode without invoking external gateway.
+ */
+export async function confirmFakeRazorpayPayment(orderId: string): Promise<void> {
+  await axiosInstance.post("/payments/fake-confirm", { orderId });
+}

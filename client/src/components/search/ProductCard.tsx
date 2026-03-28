@@ -290,7 +290,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             ) : (
               <Button
                 type="button"
-                variant="form"
+                
                 size="lg"
                 className="w-full"
                 onClick={handleAddToCart}

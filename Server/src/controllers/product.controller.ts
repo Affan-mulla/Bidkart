@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import Product from "../models/Product.model";
 import SellerProfile from "../models/SellerProfile.model";
 import { IUserDocument } from "../models/User.model";
+import * as exportService from "../services/export.service";
 import * as productService from "../services/product.service";
 import AppError from "../utils/appError";
 import { sendSuccess } from "../utils/response.utils";
@@ -482,6 +483,39 @@ export const getSellerStats = async (req: Request, res: Response, next: NextFunc
     const stats = await productService.getSellerStats(sellerId);
 
     return sendSuccess(res, "Stats fetched", { ...stats });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Export seller products into downloadable excel/xml/pdf file.
+ */
+export const exportSellerProducts = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const authUser = req.user as IUserDocument | undefined;
+
+    if (!authUser) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const exportResult = await exportService.exportSellerProducts(String(authUser._id), {
+      format: req.query.format,
+    });
+
+    res.setHeader("Content-Type", exportResult.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename=\"${exportResult.fileName}\"`);
+    res.setHeader("Content-Length", String(exportResult.buffer.length));
+    res.setHeader("X-Export-Total-Count", String(exportResult.metadata.totalRecords));
+    res.setHeader("X-Export-Returned-Count", String(exportResult.metadata.returnedRecords));
+    res.setHeader("X-Export-Max-Records", String(exportResult.metadata.maxRecords));
+    res.setHeader("X-Export-Truncated", String(exportResult.metadata.truncated));
+
+    return res.status(200).send(exportResult.buffer);
   } catch (error) {
     return next(error);
   }

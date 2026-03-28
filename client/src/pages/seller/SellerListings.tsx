@@ -4,7 +4,9 @@ import { useMemo, useState } from "react"
 
 import {
   deleteProduct,
+  exportSellerProducts,
   getMyProducts,
+  type ExportFormat,
   type Product,
 } from "@/api/sellerProduct.api"
 import ProductFormModal from "@/components/seller/ProductFormModal"
@@ -18,11 +20,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { extractApiErrorMessage } from "@/lib/apiError"
 import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { AddCircleFreeIcons } from "@hugeicons/core-free-icons"
+import { AddCircleFreeIcons, ArrowDown01Icon, Download } from "@hugeicons/core-free-icons"
 
 const rupeeFormatter = new Intl.NumberFormat("en-IN")
 
@@ -33,6 +36,7 @@ export default function SellerListings() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("excel")
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null)
 
@@ -54,6 +58,33 @@ export default function SellerListings() {
     },
   })
 
+  const exportProductsMutation = useMutation({
+    mutationFn: () => exportSellerProducts(exportFormat),
+    onSuccess: (result) => {
+      const downloadUrl = URL.createObjectURL(result.blob)
+      const anchor = document.createElement("a")
+
+      anchor.href = downloadUrl
+      anchor.download = result.fileName
+
+      document.body.appendChild(anchor)
+      anchor.click()
+      document.body.removeChild(anchor)
+      URL.revokeObjectURL(downloadUrl)
+
+      if (result.metadata.truncated) {
+        toast.warning(
+          `Export is capped at ${result.metadata.maxRecords.toLocaleString("en-IN")} records. Returned ${result.metadata.returnedCount.toLocaleString("en-IN")} of ${result.metadata.totalCount.toLocaleString("en-IN")}.`,
+        )
+      } else {
+        toast.success("Product export downloaded")
+      }
+    },
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "Could not export products"))
+    },
+  })
+
   const products = data?.products ?? []
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 1
@@ -70,10 +101,32 @@ export default function SellerListings() {
             </Badge>
           </div>
 
-          <Button variant="form" className="h-9" onClick={() => setIsCreateOpen(true)}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={exportFormat} onValueChange={(value) => setExportFormat(value as ExportFormat)}>
+              <SelectTrigger className="h-9 w-[120px] border-gray-200 bg-white">
+                <SelectValue placeholder="Format" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectItem value="excel">Excel</SelectItem>
+                <SelectItem value="xml">XML</SelectItem>
+                <SelectItem value="pdf">PDF</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              size={"lg"}
+              onClick={() => exportProductsMutation.mutate()}
+              disabled={exportProductsMutation.isPending}
+            >
+              <HugeiconsIcon icon={Download} className="size-4" />
+              {exportProductsMutation.isPending ? "Exporting..." : "Export Products"}
+            </Button>
+
+            <Button size={"lg"} onClick={() => setIsCreateOpen(true)}>
               <HugeiconsIcon icon={AddCircleFreeIcons} className="size-4" />
-             Add Product
-          </Button>
+              Add Product
+            </Button>
+          </div>
         </header>
 
         <Card className="border-gray-100 bg-white shadow-sm">
@@ -116,7 +169,7 @@ export default function SellerListings() {
                 <PackageOpen className="size-14 text-gray-300" />
                 <p className="mt-4 text-base text-gray-500">No products yet</p>
                 <p className="mt-1 text-sm text-gray-400">Add your first product to get started</p>
-                <Button variant="form" className="mt-5 h-9" onClick={() => setIsCreateOpen(true)}>
+                <Button className="mt-5 h-9" onClick={() => setIsCreateOpen(true)}>
                   <HugeiconsIcon icon={AddCircleFreeIcons} className="size-4" />
                   Add Product
                 </Button>

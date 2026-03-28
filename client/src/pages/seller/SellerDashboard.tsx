@@ -123,7 +123,7 @@ export default function SellerDashboard() {
                 <p className="mt-4 text-base font-medium text-gray-600">No products yet</p>
                 <p className="mt-1 text-sm text-gray-400">Start by adding your first product listing.</p>
                 <Button
-                  variant="form"
+                  
                   className="mt-4 h-9"
                   onClick={() => navigate("/seller/listings")}
                 >
@@ -155,7 +155,7 @@ export default function SellerDashboard() {
         </Card>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button variant="form" className="h-10" onClick={() => navigate("/seller/listings")}>Add New Product</Button>
+          <Button  className="h-10" onClick={() => navigate("/seller/listings")}>Add New Product</Button>
           <Button variant="outline" className="h-10" onClick={() => navigate("/seller/orders")}>View All Orders</Button>
         </div>
       </div>

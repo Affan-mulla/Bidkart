@@ -95,6 +95,45 @@ export const verifyPaymentHandler = async (req: Request, res: Response, next: Ne
 };
 
 /**
+ * Confirm Razorpay payment in demo mode (no external gateway).
+ */
+export const fakeConfirmPaymentHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const authUser = req.user as IUserDocument | undefined;
+
+    if (!authUser) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const { orderId } = req.body as { orderId?: string };
+
+    if (!orderId) {
+      throw new AppError("orderId is required", 400);
+    }
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      throw new AppError("Order not found", 404);
+    }
+
+    if (String(order.buyerId) !== String(authUser._id)) {
+      throw new AppError("Forbidden", 403);
+    }
+
+    await paymentService.confirmFakeRazorpayPayment(orderId);
+
+    return sendSuccess(res, "Payment confirmed successfully");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
  * Handle Razorpay webhook callbacks.
  */
 export const webhookHandler = async (req: Request, res: Response, next: NextFunction) => {

@@ -15,15 +15,22 @@ import {
 import { toast } from "sonner";
 
 import { cancelOrder, getBuyerOrderById, type Order } from "@/api/order.api";
-import { createRazorpayOrder, verifyPayment } from "@/api/payment.api";
+import { confirmFakeRazorpayPayment } from "@/api/payment.api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/lib/axios";
-import { loadRazorpayScript, openRazorpayCheckout } from "@/lib/razorpay";
 
 const ORDER_STEPS: Array<Order["status"]> = ["Placed", "Confirmed", "Packed", "Shipped", "Delivered"];
 
@@ -50,6 +57,7 @@ export default function OrderDetail() {
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isFakePaymentDialogOpen, setIsFakePaymentDialogOpen] = useState(false);
 
   const orderQuery = useQuery({
     queryKey: ["buyerOrder", id],
@@ -126,51 +134,32 @@ export default function OrderDetail() {
 
   const handlePayNow = async () => {
     if (!order) return;
+    setIsFakePaymentDialogOpen(true);
+    toast.info("Demo payment window opened. Confirm to complete payment.");
+  };
+
+  const handleConfirmFakePayment = async () => {
+    if (!order) {
+      return;
+    }
+
     try {
       setIsProcessingPayment(true);
-
-      const loaded = await loadRazorpayScript();
-      if (!loaded) {
-        toast.error("Could not load payment gateway. Please try again.");
-        return;
-      }
-
-      const { razorpayOrderId, amount, keyId } = await createRazorpayOrder(order._id);
-
-      const paymentResponse = await openRazorpayCheckout({
-        key: keyId,
-        amount,
-        currency: "INR",
-        name: "BidKart",
-        description: `Auction Win - Order #${order._id.slice(-8).toUpperCase()}`,
-        order_id: razorpayOrderId,
-        prefill: {
-          name: order.shippingAddress.fullName,
-          contact: order.shippingAddress.phone,
-        },
-        theme: { color: "#9b2c2c" },
-      });
-
-      await verifyPayment({
-        orderId: order._id,
-        razorpayOrderId: paymentResponse.razorpay_order_id,
-        razorpayPaymentId: paymentResponse.razorpay_payment_id,
-        razorpaySignature: paymentResponse.razorpay_signature,
-      });
-
+      await confirmFakeRazorpayPayment(order._id);
+      setIsFakePaymentDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["buyerOrder", id] });
       queryClient.invalidateQueries({ queryKey: ["buyerOrders"] });
       toast.success("Payment successful! Your order is confirmed.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (message === "Payment cancelled") {
-        toast.info("Payment cancelled.");
-      } else {
-        toast.error("Payment failed. Please try again.");
-      }
+    } catch {
+      toast.error("Payment failed. Please try again.");
     } finally {
       setIsProcessingPayment(false);
     }
+  };
+
+  const handleCancelFakePayment = () => {
+    setIsFakePaymentDialogOpen(false);
+    toast.info("Payment cancelled.");
   };
 
   const canCancel = order.status === "Placed" || order.status === "Confirmed";
@@ -420,6 +409,37 @@ export default function OrderDetail() {
           </CardContent>
         </Card>
       ) : null}
+
+      <Dialog open={isFakePaymentDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCancelFakePayment()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Razorpay Demo Confirmation</DialogTitle>
+            <DialogDescription>
+              This is a simulated payment window. Click confirm to mark this Razorpay payment as successful.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Amount</span>
+              <span className="font-semibold text-foreground">₹{order.totalAmount.toLocaleString("en-IN")}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Order</span>
+              <span className="font-mono text-xs text-foreground">#{order._id.slice(-8).toUpperCase()}</span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelFakePayment} disabled={isProcessingPayment}>
+              Cancel Payment
+            </Button>
+            <Button onClick={() => void handleConfirmFakePayment()} disabled={isProcessingPayment}>
+              {isProcessingPayment ? "Confirming..." : "Confirm Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
+  ArrowDown01Icon,
   DeliveryBox01Icon,
+  Download,
   PackageIcon,
   UserListIcon,
   ViewIcon,
@@ -10,8 +12,11 @@ import {
 import { toast } from "sonner";
 
 import {
+  exportSellerOrders,
   getSellerOrderById,
   getSellerOrders,
+  type ExportFormat,
+  type OrderExportDuration,
   updateOrderStatus,
   type Order,
 } from "@/api/order.api";
@@ -27,6 +32,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { extractApiErrorMessage } from "@/lib/apiError";
 
 const STATUS_FILTERS: Array<"All" | Order["status"]> = [
   "All",
@@ -71,6 +77,8 @@ export default function SellerOrders() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<(typeof STATUS_FILTERS)[number]>("All");
+  const [exportDuration, setExportDuration] = useState<OrderExportDuration>("all");
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("excel");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const sellerOrdersQuery = useQuery({
@@ -95,6 +103,38 @@ export default function SellerOrders() {
     },
     onError: () => {
       toast.error("Could not update order status");
+    },
+  });
+
+  const exportOrdersMutation = useMutation({
+    mutationFn: () =>
+      exportSellerOrders({
+        format: exportFormat,
+        duration: exportDuration,
+        status: status === "All" ? undefined : status,
+      }),
+    onSuccess: (result) => {
+      const downloadUrl = URL.createObjectURL(result.blob);
+      const anchor = document.createElement("a");
+
+      anchor.href = downloadUrl;
+      anchor.download = result.fileName;
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(downloadUrl);
+
+      if (result.metadata.truncated) {
+        toast.warning(
+          `Export is capped at ${result.metadata.maxRecords.toLocaleString("en-IN")} records. Returned ${result.metadata.returnedCount.toLocaleString("en-IN")} of ${result.metadata.totalCount.toLocaleString("en-IN")}.`,
+        );
+      } else {
+        toast.success("Order export downloaded");
+      }
+    },
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "Could not export orders"));
     },
   });
 
@@ -130,6 +170,35 @@ export default function SellerOrders() {
               {filter}
             </Button>
           ))}
+        </div>
+
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto">
+          <Select value={exportDuration} onValueChange={(value) => setExportDuration(value as OrderExportDuration)}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Duration" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">Last Week</SelectItem>
+              <SelectItem value="month">Last Month</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={exportFormat} onValueChange={(value) => setExportFormat(value as ExportFormat)}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Format" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="excel">Excel</SelectItem>
+              <SelectItem value="xml">XML</SelectItem>
+              <SelectItem value="pdf">PDF</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button  onClick={() => exportOrdersMutation.mutate()} disabled={exportOrdersMutation.isPending}>
+            <HugeiconsIcon icon={Download} className="size-4" />
+            {exportOrdersMutation.isPending ? "Exporting..." : "Export Orders"}
+          </Button>
         </div>
       </header>
 

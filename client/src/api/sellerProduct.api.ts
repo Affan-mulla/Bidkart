@@ -38,6 +38,39 @@ export interface PaginatedProducts {
   totalPages: number
 }
 
+export type ExportFormat = "excel" | "xml" | "pdf"
+
+export interface ExportFileResponse {
+  blob: Blob
+  fileName: string
+  metadata: {
+    totalCount: number
+    returnedCount: number
+    maxRecords: number
+    truncated: boolean
+  }
+}
+
+/**
+ * Extract filename from content-disposition response header.
+ */
+function getFileNameFromDisposition(
+  dispositionHeader: string | undefined,
+  fallbackName: string,
+): string {
+  if (!dispositionHeader) {
+    return fallbackName
+  }
+
+  const fileNameMatch = dispositionHeader.match(/filename="?([^";]+)"?/i)
+
+  if (!fileNameMatch?.[1]) {
+    return fallbackName
+  }
+
+  return decodeURIComponent(fileNameMatch[1])
+}
+
 /**
  * Fetches aggregate listing metrics for the current seller.
  */
@@ -91,4 +124,33 @@ export async function updateProduct(id: string, formData: FormData): Promise<Pro
  */
 export async function deleteProduct(id: string): Promise<void> {
   await axiosInstance.delete(`/products/${id}`)
+}
+
+/**
+ * Exports seller product list into the selected file format.
+ */
+export async function exportSellerProducts(format: ExportFormat): Promise<ExportFileResponse> {
+  const response = await axiosInstance.get("/products/seller/export", {
+    params: { format },
+    responseType: "blob",
+  })
+
+  const contentDisposition = response.headers["content-disposition"] as string | undefined
+  const fallbackName = `seller-products.${format === "excel" ? "xlsx" : format}`
+
+  const totalCount = Number(response.headers["x-export-total-count"] ?? 0)
+  const returnedCount = Number(response.headers["x-export-returned-count"] ?? 0)
+  const maxRecords = Number(response.headers["x-export-max-records"] ?? 0)
+  const truncatedHeader = String(response.headers["x-export-truncated"] ?? "false").toLowerCase()
+
+  return {
+    blob: response.data,
+    fileName: getFileNameFromDisposition(contentDisposition, fallbackName),
+    metadata: {
+      totalCount,
+      returnedCount,
+      maxRecords,
+      truncated: truncatedHeader === "true",
+    },
+  }
 }

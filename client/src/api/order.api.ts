@@ -59,6 +59,40 @@ export interface PaginatedOrdersResponse {
   totalPages: number;
 }
 
+export type ExportFormat = "excel" | "xml" | "pdf";
+export type OrderExportDuration = "week" | "month" | "all";
+
+export interface ExportFileResponse {
+  blob: Blob;
+  fileName: string;
+  metadata: {
+    totalCount: number;
+    returnedCount: number;
+    maxRecords: number;
+    truncated: boolean;
+  };
+}
+
+/**
+ * Extract a downloadable filename from content-disposition header.
+ */
+function getFileNameFromDisposition(
+  dispositionHeader: string | undefined,
+  fallbackName: string,
+): string {
+  if (!dispositionHeader) {
+    return fallbackName;
+  }
+
+  const fileNameMatch = dispositionHeader.match(/filename="?([^";]+)"?/i);
+
+  if (!fileNameMatch?.[1]) {
+    return fallbackName;
+  }
+
+  return decodeURIComponent(fileNameMatch[1]);
+}
+
 /**
  * Places an order from cart items using the provided shipping address.
  */
@@ -142,4 +176,41 @@ export async function updateOrderStatus(id: string, status: string): Promise<Ord
   });
 
   return response.data?.data?.order;
+}
+
+/**
+ * Exports seller orders into a downloadable file format.
+ */
+export async function exportSellerOrders(options: {
+  format: ExportFormat;
+  status?: Order["status"];
+  duration: OrderExportDuration;
+}): Promise<ExportFileResponse> {
+  const response = await axiosInstance.get("/orders/seller/export", {
+    params: {
+      format: options.format,
+      duration: options.duration,
+      ...(options.status ? { status: options.status } : {}),
+    },
+    responseType: "blob",
+  });
+
+  const contentDisposition = response.headers["content-disposition"] as string | undefined;
+  const fallbackName = `seller-orders.${options.format === "excel" ? "xlsx" : options.format}`;
+
+  const totalCount = Number(response.headers["x-export-total-count"] ?? 0);
+  const returnedCount = Number(response.headers["x-export-returned-count"] ?? 0);
+  const maxRecords = Number(response.headers["x-export-max-records"] ?? 0);
+  const truncatedHeader = String(response.headers["x-export-truncated"] ?? "false").toLowerCase();
+
+  return {
+    blob: response.data,
+    fileName: getFileNameFromDisposition(contentDisposition, fallbackName),
+    metadata: {
+      totalCount,
+      returnedCount,
+      maxRecords,
+      truncated: truncatedHeader === "true",
+    },
+  };
 }

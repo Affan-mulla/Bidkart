@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import Cart from "../models/Cart.model";
 import Order, { IOrderDocument, IShippingAddress, OrderStatus, PaymentMethod } from "../models/Order.model";
+import { getNextInvoiceNumber } from "../models/Counter.model";
 import Product from "../models/Product.model";
 import AppError from "../utils/appError";
 import * as cartService from "./cart.service";
@@ -59,7 +60,7 @@ export const placeOrder = async (
 ): Promise<IOrderDocument> => {
   validateShippingAddress(shippingAddress);
 
-  if (paymentMethod !== "COD") {
+  if (paymentMethod !== "COD" && paymentMethod !== "Razorpay") {
     throw new AppError("Invalid payment method", 400);
   }
 
@@ -320,6 +321,13 @@ export const updateOrderStatus = async (
   }
 
   order.status = newStatus as OrderStatus;
+
+  if (newStatus === "Delivered" && order.paymentMethod === "COD" && order.paymentStatus === "Pending") {
+    const invoiceNumber = await getNextInvoiceNumber();
+    order.paymentStatus = "Paid";
+    order.invoiceNumber = invoiceNumber;
+  }
+
   await order.save();
 
   const statusMessages: Partial<Record<OrderStatus, string>> = {
@@ -335,6 +343,15 @@ export const updateOrderStatus = async (
     message: statusMessages[order.status] || `Your order status is now ${newStatus}`,
     link: `/orders/${String(order._id)}`,
   });
+
+  if (newStatus === "Delivered" && order.paymentMethod === "COD" && order.paymentStatus === "Paid") {
+    await createNotification(String(order.buyerId), {
+      type: "payment_received",
+      title: "COD Payment Marked as Paid",
+      message: `Order #${String(order._id).slice(-8).toUpperCase()} was delivered and payment is marked as paid.`,
+      link: `/orders/${String(order._id)}`,
+    });
+  }
 
   return order;
 };

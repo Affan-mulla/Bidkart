@@ -11,12 +11,20 @@ import { z } from "zod";
 import { getCart } from "@/api/cart.api";
 import { applyCoupon, type CouponValidateResponse, validateCoupon } from "@/api/coupon.api";
 import { cancelOrder, placeOrder } from "@/api/order.api";
-import { createRazorpayOrder, verifyPayment } from "@/api/payment.api";
+import { confirmFakeRazorpayPayment } from "@/api/payment.api";
 import { getAddresses, type Address } from "@/api/profile.api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -30,7 +38,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { extractApiErrorMessage } from "@/lib/apiError";
-import { loadRazorpayScript, openRazorpayCheckout } from "@/lib/razorpay";
 import { useCartStore } from "@/store/cartStore";
 
 const INDIAN_STATES = [
@@ -74,6 +81,9 @@ export default function Checkout() {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidateResponse | null>(null);
   const [isCouponLoading, setIsCouponLoading] = useState(false);
+  const [isFakePaymentDialogOpen, setIsFakePaymentDialogOpen] = useState(false);
+  const [pendingRazorpayOrderId, setPendingRazorpayOrderId] = useState<string | null>(null);
+  const [pendingRazorpayAmount, setPendingRazorpayAmount] = useState(0);
 
   const cartQuery = useQuery({
     queryKey: ["cart"],
@@ -170,67 +180,67 @@ export default function Checkout() {
         return;
       }
 
-      const loaded = await loadRazorpayScript();
-
-      if (!loaded) {
-        toast.error("Could not load payment gateway. Please try again.");
-        await cancelOrder(order._id, "Payment gateway failed to load");
-        return;
-      }
-
-      const { razorpayOrderId, amount, keyId } = await createRazorpayOrder(order._id);
-
-      try {
-        const paymentResponse = await openRazorpayCheckout({
-          key: keyId,
-          amount,
-          currency: "INR",
-          name: "BidKart",
-          description: `Order #${order._id.slice(-8).toUpperCase()}`,
-          order_id: razorpayOrderId,
-          prefill: {
-            name: values.fullName,
-            contact: values.phone,
-          },
-          theme: { color: "#9b2c2c" },
-        });
-
-        await verifyPayment({
-          orderId: order._id,
-          razorpayOrderId: paymentResponse.razorpay_order_id,
-          razorpayPaymentId: paymentResponse.razorpay_payment_id,
-          razorpaySignature: paymentResponse.razorpay_signature,
-        });
-
-        if (appliedCoupon?.couponId) {
-          try {
-            await applyCoupon(appliedCoupon.couponId);
-          } catch {
-            toast.error("Payment completed, but coupon usage was not recorded.");
-          }
-        }
-
-        queryClient.invalidateQueries({ queryKey: ["cart"] });
-        useCartStore.getState().reset();
-        toast.success("Payment successful! Order confirmed.");
-        navigate("/orders");
-      } catch (paymentError) {
-        const message = paymentError instanceof Error ? paymentError.message : "";
-
-        if (message === "Payment cancelled") {
-          toast.info("Payment cancelled. Your order has been removed.");
-        } else {
-          toast.error("Payment failed. Please try again.");
-        }
-
-        try {
-          await cancelOrder(order._id, "Payment not completed");
-        } catch {
-          // Best-effort cancellation for pending payment orders.
-        }
-      }
+      setPendingRazorpayOrderId(order._id);
+      setPendingRazorpayAmount(order.totalAmount);
+      setIsFakePaymentDialogOpen(true);
+      toast.info("Demo payment window opened. Confirm to complete payment.");
     } catch (error) {
       toast.error(extractApiErrorMessage(error, "Something went wrong."));
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const clearFakePaymentState = () => {
+    setIsFakePaymentDialogOpen(false);
+    setPendingRazorpayOrderId(null);
+    setPendingRazorpayAmount(0);
+  };
+
+  const handleConfirmFakePayment = async () => {
+    if (!pendingRazorpayOrderId) {
+      return;
+    }
+
+    try {
+      setIsProcessingPayment(true);
+      await confirmFakeRazorpayPayment(pendingRazorpayOrderId);
+
+      if (appliedCoupon?.couponId) {
+        try {
+          await applyCoupon(appliedCoupon.couponId);
+        } catch {
+          toast.error("Payment completed, but coupon usage was not recorded.");
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      useCartStore.getState().reset();
+      clearFakePaymentState();
+      toast.success("Payment successful! Order confirmed.");
+      navigate("/orders");
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "Payment failed. Please try again."));
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const handleCancelFakePayment = async () => {
+    const orderId = pendingRazorpayOrderId;
+
+    clearFakePaymentState();
+
+    if (!orderId) {
+      return;
+    }
+
+    try {
+      setIsProcessingPayment(true);
+      await cancelOrder(orderId, "Demo payment cancelled by user");
+      toast.info("Payment cancelled. Your order has been removed.");
+    } catch {
+      toast.error("Payment cancelled, but order cleanup failed. Please cancel from Orders.");
     } finally {
       setIsProcessingPayment(false);
     }
@@ -594,10 +604,10 @@ export default function Checkout() {
                 <Button type="submit" className="w-full" disabled={isProcessingPayment}>
                   {isProcessingPayment
                     ? paymentMethod === "Razorpay"
-                      ? "Opening Payment..."
+                      ? "Preparing Payment..."
                       : "Placing Order..."
                     : paymentMethod === "Razorpay"
-                      ? "Proceed to Pay"
+                      ? "Proceed to Demo Payment"
                       : "Place Order"}
                 </Button>
               </form>
@@ -660,6 +670,39 @@ export default function Checkout() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isFakePaymentDialogOpen} onOpenChange={(isOpen) => !isOpen && void handleCancelFakePayment()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Razorpay Demo Confirmation</DialogTitle>
+            <DialogDescription>
+              This is a simulated payment window. Click confirm to mark this Razorpay payment as successful.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Amount</span>
+              <span className="font-semibold text-foreground">₹{pendingRazorpayAmount.toLocaleString("en-IN")}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Order</span>
+              <span className="font-mono text-xs text-foreground">
+                #{pendingRazorpayOrderId?.slice(-8).toUpperCase() || "-"}
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => void handleCancelFakePayment()} disabled={isProcessingPayment}>
+              Cancel Payment
+            </Button>
+            <Button onClick={() => void handleConfirmFakePayment()} disabled={isProcessingPayment}>
+              {isProcessingPayment ? "Confirming..." : "Confirm Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -143,7 +143,7 @@ export default function SellerRegisterForm() {
         ) : null}
       </div>
 
-      <Button type="submit" disabled={isSubmitting} className="w-full" variant="form" size="lg">
+      <Button type="submit" disabled={isSubmitting} className="w-full"  size="lg">
         {isSubmitting ? "Creating seller account..." : "Create seller account"}
       </Button>
 

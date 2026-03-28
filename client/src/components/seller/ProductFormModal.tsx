@@ -369,7 +369,7 @@ export default function ProductFormModal({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={mutation.isPending}>
               Cancel
             </Button>
-            <Button type="submit" variant="form" disabled={mutation.isPending}>
+            <Button type="submit"  disabled={mutation.isPending}>
               {mutation.isPending ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="size-4 animate-spin" />

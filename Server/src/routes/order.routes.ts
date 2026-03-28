@@ -1,6 +1,7 @@
 import express from "express";
 import {
   cancelOrder,
+  exportSellerOrders,
   getBuyerOrderById,
   getBuyerOrders,
   getSellerOrderById,
@@ -16,6 +17,7 @@ const router = express.Router();
 router.post("/", protect, roleGuard("buyer"), placeOrder);
 router.get("/", protect, roleGuard("buyer"), getBuyerOrders);
 router.patch("/:id/cancel", protect, roleGuard("buyer"), cancelOrder);
+router.get("/seller/export", protect, roleGuard("seller"), exportSellerOrders);
 router.get("/seller", protect, roleGuard("seller"), getSellerOrders);
 router.get("/seller/:id", protect, roleGuard("seller"), getSellerOrderById);
 router.patch("/seller/:id/status", protect, roleGuard("seller"), updateOrderStatus);

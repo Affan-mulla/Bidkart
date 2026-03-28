@@ -48,6 +48,20 @@ const isRefundEvent = (eventPayload: RazorpayWebhookEvent): eventPayload is Razo
 };
 
 /**
+ * Generate stable-looking fake Razorpay identifiers for local/demo checkout.
+ */
+const generateFakeRazorpayIds = (orderId: string) => {
+  const suffix = orderId.slice(-8).toUpperCase();
+  const randomHex = crypto.randomBytes(6).toString("hex");
+
+  return {
+    razorpayOrderId: `order_demo_${suffix}_${randomHex}`,
+    razorpayPaymentId: `pay_demo_${suffix}_${randomHex}`,
+    razorpaySignature: `sig_demo_${crypto.randomBytes(12).toString("hex")}`,
+  };
+};
+
+/**
  * Create Razorpay order for a BidKart order.
  */
 export async function createRazorpayOrder(
@@ -128,6 +142,43 @@ export async function markOrderPaid(
   order.razorpayOrderId = razorpayOrderId;
   order.razorpayPaymentId = razorpayPaymentId;
   order.razorpaySignature = razorpaySignature;
+  order.invoiceNumber = invoiceNumber;
+
+  await order.save();
+
+  await createNotification(String(order.buyerId), {
+    type: "payment_received",
+    title: "Payment Confirmed",
+    message: `Payment of ₹${order.totalAmount.toLocaleString("en-IN")} received for order #${invoiceNumber}.`,
+    link: `/orders/${String(order._id)}`,
+  });
+}
+
+/**
+ * Confirm Razorpay payment in demo mode without external gateway verification.
+ */
+export async function confirmFakeRazorpayPayment(orderId: string): Promise<void> {
+  const order = await Order.findById(orderId);
+
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+
+  if (order.paymentMethod !== "Razorpay") {
+    throw new AppError("This order is not using Razorpay", 400);
+  }
+
+  if (order.paymentStatus === "Paid") {
+    throw new AppError("Order already paid", 400);
+  }
+
+  const invoiceNumber = await getNextInvoiceNumber();
+  const fakePayment = generateFakeRazorpayIds(String(order._id));
+
+  order.paymentStatus = "Paid";
+  order.razorpayOrderId = fakePayment.razorpayOrderId;
+  order.razorpayPaymentId = fakePayment.razorpayPaymentId;
+  order.razorpaySignature = fakePayment.razorpaySignature;
   order.invoiceNumber = invoiceNumber;
 
   await order.save();

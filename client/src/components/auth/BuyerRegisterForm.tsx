@@ -110,7 +110,7 @@ export default function BuyerRegisterForm() {
         {errors.confirmPassword ? <p className="text-xs text-destructive">{errors.confirmPassword.message}</p> : null}
       </div>
 
-      <Button type="submit" disabled={isSubmitting} className="w-full h-9" variant="form" size="lg">
+      <Button type="submit" disabled={isSubmitting} className="w-full h-9"  size="lg">
         {isSubmitting ? "Creating account..." : "Create buyer account"}
       </Button>
 
