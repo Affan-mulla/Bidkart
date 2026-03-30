@@ -115,13 +115,20 @@ export default function VerifyEmailPage() {
   }, [counter])
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-2xl font-semibold text-foreground">Verify your email</h2>
-        <p className="text-sm text-muted-foreground">We sent a code to {maskEmail(emailToShow)}.</p>
+    <div className="space-y-7">
+      <div className="space-y-2">
+        <h2 className="text-balance text-2xl font-semibold text-foreground sm:text-3xl">Verify your email</h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">Enter the 6-digit verification code we sent to continue.</p>
       </div>
 
-      <OtpInput value={otp} onChange={setOtp} disabled={isSubmitting} />
+      <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+        Code sent to <span className="font-medium text-foreground">{maskEmail(emailToShow)}</span>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-foreground">Verification code</p>
+        <OtpInput value={otp} onChange={setOtp} disabled={isSubmitting} />
+      </div>
 
       <Button
         type="button"
@@ -134,17 +141,20 @@ export default function VerifyEmailPage() {
         {isSubmitting ? "Verifying..." : "Verify email"}
       </Button>
 
-      <Button
-        type="button"
-        variant="ghost"
-        disabled={counter > 0}
-        onClick={() => {
-          void handleResend()
-        }}
-        className="w-full text-[#9b2c2c] hover:bg-[#9b2c2c]/10 hover:text-[#9b2c2c]"
-      >
-        {resendLabel}
-      </Button>
+      <div className="space-y-2">
+        <p className="text-center text-xs text-muted-foreground">Didn&apos;t receive a code?</p>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={counter > 0}
+          onClick={() => {
+            void handleResend()
+          }}
+          className="w-full text-[#9b2c2c] hover:bg-[#9b2c2c]/10 hover:text-[#9b2c2c]"
+        >
+          {resendLabel}
+        </Button>
+      </div>
     </div>
   )
 }

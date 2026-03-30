@@ -10,8 +10,7 @@ import { z } from "zod";
 
 import { getCart } from "@/api/cart.api";
 import { applyCoupon, type CouponValidateResponse, validateCoupon } from "@/api/coupon.api";
-import { cancelOrder, placeOrder } from "@/api/order.api";
-import { confirmFakeRazorpayPayment } from "@/api/payment.api";
+import { cancelOrder, confirmFakeOrderPayment, placeOrder } from "@/api/order.api";
 import { getAddresses, type Address } from "@/api/profile.api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -75,15 +74,16 @@ type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 export default function Checkout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [paymentMethod, setPaymentMethod] = useState<"Razorpay" | "COD">("Razorpay");
+  const [paymentMethod, setPaymentMethod] = useState<"COD" | "Razorpay">("COD");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isFakePaymentModalOpen, setIsFakePaymentModalOpen] = useState(false);
+  const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState<string | null>(null);
+  const [isConfirmingFakePayment, setIsConfirmingFakePayment] = useState(false);
+  const [isCancellingFakePayment, setIsCancellingFakePayment] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidateResponse | null>(null);
   const [isCouponLoading, setIsCouponLoading] = useState(false);
-  const [isFakePaymentDialogOpen, setIsFakePaymentDialogOpen] = useState(false);
-  const [pendingRazorpayOrderId, setPendingRazorpayOrderId] = useState<string | null>(null);
-  const [pendingRazorpayAmount, setPendingRazorpayAmount] = useState(0);
 
   const cartQuery = useQuery({
     queryKey: ["cart"],
@@ -150,7 +150,7 @@ export default function Checkout() {
     try {
       setIsProcessingPayment(true);
 
-      const order = await placeOrder(
+      const createdOrder = await placeOrder(
         {
           fullName: values.fullName,
           phone: values.phone,
@@ -164,26 +164,25 @@ export default function Checkout() {
         appliedCoupon?.couponCode,
       );
 
-      if (paymentMethod === "COD") {
-        if (appliedCoupon?.couponId) {
-          try {
-            await applyCoupon(appliedCoupon.couponId);
-          } catch {
-            toast.error("Order placed, but coupon usage was not recorded.");
-          }
+      if (appliedCoupon?.couponId) {
+        try {
+          await applyCoupon(appliedCoupon.couponId);
+        } catch {
+          toast.error("Order placed, but coupon usage was not recorded.");
         }
+      }
 
-        queryClient.invalidateQueries({ queryKey: ["cart"] });
-        useCartStore.getState().reset();
-        toast.success("Order placed successfully!");
-        navigate("/orders");
+      if (paymentMethod === "Razorpay") {
+        setPendingPaymentOrderId(createdOrder._id);
+        setIsFakePaymentModalOpen(true);
+        toast.info("Order placed. Please confirm the  Razorpay payment.");
         return;
       }
 
-      setPendingRazorpayOrderId(order._id);
-      setPendingRazorpayAmount(order.totalAmount);
-      setIsFakePaymentDialogOpen(true);
-      toast.info("Demo payment window opened. Confirm to complete payment.");
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      useCartStore.getState().reset();
+      toast.success("Order placed successfully!");
+      navigate("/orders");
     } catch (error) {
       toast.error(extractApiErrorMessage(error, "Something went wrong."));
     } finally {
@@ -191,58 +190,50 @@ export default function Checkout() {
     }
   };
 
-  const clearFakePaymentState = () => {
-    setIsFakePaymentDialogOpen(false);
-    setPendingRazorpayOrderId(null);
-    setPendingRazorpayAmount(0);
-  };
-
   const handleConfirmFakePayment = async () => {
-    if (!pendingRazorpayOrderId) {
+    if (!pendingPaymentOrderId) {
       return;
     }
 
     try {
-      setIsProcessingPayment(true);
-      await confirmFakeRazorpayPayment(pendingRazorpayOrderId);
-
-      if (appliedCoupon?.couponId) {
-        try {
-          await applyCoupon(appliedCoupon.couponId);
-        } catch {
-          toast.error("Payment completed, but coupon usage was not recorded.");
-        }
-      }
-
+      setIsConfirmingFakePayment(true);
+      await confirmFakeOrderPayment(pendingPaymentOrderId);
+      queryClient.invalidateQueries({ queryKey: ["buyerOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["buyerOrder", pendingPaymentOrderId] });
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       useCartStore.getState().reset();
-      clearFakePaymentState();
-      toast.success("Payment successful! Order confirmed.");
-      navigate("/orders");
+      setIsFakePaymentModalOpen(false);
+      toast.success("Payment confirmed. Your order is now marked as paid.");
+      navigate(`/orders/${pendingPaymentOrderId}`);
     } catch (error) {
-      toast.error(extractApiErrorMessage(error, "Payment failed. Please try again."));
+      toast.error(extractApiErrorMessage(error, "Unable to confirm payment."));
     } finally {
-      setIsProcessingPayment(false);
+      setIsConfirmingFakePayment(false);
     }
   };
 
   const handleCancelFakePayment = async () => {
-    const orderId = pendingRazorpayOrderId;
-
-    clearFakePaymentState();
-
-    if (!orderId) {
+    if (!pendingPaymentOrderId) {
       return;
     }
 
     try {
-      setIsProcessingPayment(true);
-      await cancelOrder(orderId, "Demo payment cancelled by user");
-      toast.info("Payment cancelled. Your order has been removed.");
-    } catch {
-      toast.error("Payment cancelled, but order cleanup failed. Please cancel from Orders.");
+      setIsCancellingFakePayment(true);
+      await cancelOrder(
+        pendingPaymentOrderId,
+        " Razorpay payment cancelled by buyer at checkout.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["buyerOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["buyerOrder", pendingPaymentOrderId] });
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      useCartStore.getState().reset();
+      setIsFakePaymentModalOpen(false);
+      toast.success("Payment cancelled. The created order has been cancelled.");
+      navigate("/orders");
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "Unable to cancel payment."));
     } finally {
-      setIsProcessingPayment(false);
+      setIsCancellingFakePayment(false);
     }
   };
 
@@ -309,7 +300,7 @@ export default function Checkout() {
   }
 
   const cart = cartQuery.data;
-  const totalAmount = appliedCoupon?.finalAmount ?? cart.subtotal;
+  const totalAmount = appliedCoupon?.finalAmount ?? cart?.subtotal;
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -516,30 +507,10 @@ export default function Checkout() {
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-foreground">Payment Method</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <button
                       type="button"
-                      onClick={() => setPaymentMethod("Razorpay")}
-                      className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
-                        paymentMethod === "Razorpay"
-                          ? "border-primary bg-primary/5 ring-1 ring-primary"
-                          : "border-border hover:bg-muted/50"
-                      }`}
-                    >
-                      <div className="flex size-8 items-center justify-center rounded-md bg-[#072654] text-xs font-bold text-white">
-                        R
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Pay Online</p>
-                        <p className="text-xs text-muted-foreground">Card, UPI, NetBanking</p>
-                      </div>
-                      {paymentMethod === "Razorpay" ? (
-                        <HugeiconsIcon icon={CheckmarkCircle01Icon} className="ml-auto size-4 text-primary" />
-                      ) : null}
-                    </button>
-
-                    <button
-                      type="button"
+                      aria-pressed={paymentMethod === "COD"}
                       onClick={() => setPaymentMethod("COD")}
                       className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
                         paymentMethod === "COD"
@@ -555,6 +526,28 @@ export default function Checkout() {
                         <p className="text-xs text-muted-foreground">Pay when delivered</p>
                       </div>
                       {paymentMethod === "COD" ? (
+                        <HugeiconsIcon icon={CheckmarkCircle01Icon} className="ml-auto size-4 text-primary" />
+                      ) : null}
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={paymentMethod === "Razorpay"}
+                      onClick={() => setPaymentMethod("Razorpay")}
+                      className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                        paymentMethod === "Razorpay"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex size-8 items-center justify-center rounded-md bg-blue-100 text-blue-700">
+                        <HugeiconsIcon icon={CreditCardIcon} className="size-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Razorpay ()</p>
+                        <p className="text-xs text-muted-foreground">Place order, then confirm payment in-app</p>
+                      </div>
+                      {paymentMethod === "Razorpay" ? (
                         <HugeiconsIcon icon={CheckmarkCircle01Icon} className="ml-auto size-4 text-primary" />
                       ) : null}
                     </button>
@@ -603,11 +596,9 @@ export default function Checkout() {
 
                 <Button type="submit" className="w-full" disabled={isProcessingPayment}>
                   {isProcessingPayment
-                    ? paymentMethod === "Razorpay"
-                      ? "Preparing Payment..."
-                      : "Placing Order..."
+                    ? "Placing Order..."
                     : paymentMethod === "Razorpay"
-                      ? "Proceed to Demo Payment"
+                      ? "Place Order & Continue to Payment"
                       : "Place Order"}
                 </Button>
               </form>
@@ -647,7 +638,7 @@ export default function Checkout() {
 
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span className="text-foreground">₹{cart.subtotal.toLocaleString("en-IN")}</span>
+              <span className="text-foreground">₹{cart?.subtotal?.toLocaleString("en-IN")}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Delivery</span>
@@ -665,44 +656,58 @@ export default function Checkout() {
 
             <div className="flex items-center justify-between">
               <span className="font-semibold text-foreground">Total</span>
-              <span className="text-lg font-bold text-foreground">₹{totalAmount.toLocaleString("en-IN")}</span>
+              <span className="text-lg font-bold text-foreground">₹{totalAmount?.toLocaleString("en-IN")}</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Dialog open={isFakePaymentDialogOpen} onOpenChange={(isOpen) => !isOpen && void handleCancelFakePayment()}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog
+        open={isFakePaymentModalOpen}
+        onOpenChange={(open) => {
+          if (isConfirmingFakePayment || isCancellingFakePayment) {
+            return;
+          }
+
+          setIsFakePaymentModalOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md" showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Razorpay Demo Confirmation</DialogTitle>
+            <DialogTitle>Confirm Razorpay Payment</DialogTitle>
             <DialogDescription>
-              This is a simulated payment window. Click confirm to mark this Razorpay payment as successful.
+              This is a fake payment step for development. Confirm to mark this order as paid, or cancel to cancel the created order.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Amount</span>
-              <span className="font-semibold text-foreground">₹{pendingRazorpayAmount.toLocaleString("en-IN")}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Order</span>
-              <span className="font-mono text-xs text-foreground">
-                #{pendingRazorpayOrderId?.slice(-8).toUpperCase() || "-"}
-              </span>
-            </div>
+          <div className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+            Payment Method: <span className="font-medium text-foreground">Razorpay</span>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => void handleCancelFakePayment()} disabled={isProcessingPayment}>
-              Cancel Payment
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                void handleCancelFakePayment();
+              }}
+              disabled={isConfirmingFakePayment || isCancellingFakePayment}
+            >
+              {isCancellingFakePayment ? "Cancelling..." : "Cancel Payment"}
             </Button>
-            <Button onClick={() => void handleConfirmFakePayment()} disabled={isProcessingPayment}>
-              {isProcessingPayment ? "Confirming..." : "Confirm Payment"}
+            <Button
+              type="button"
+              onClick={() => {
+                void handleConfirmFakePayment();
+              }}
+              disabled={isConfirmingFakePayment || isCancellingFakePayment}
+            >
+              {isConfirmingFakePayment ? "Confirming..." : "Confirm Payment"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </section>
   );
 }

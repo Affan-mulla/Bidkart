@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowLeft01Icon,
   Cancel01Icon,
+  CheckmarkCircle01Icon,
   Clock01Icon,
   CreditCardIcon,
   DeliveryBox01Icon,
@@ -14,8 +15,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
 
-import { cancelOrder, getBuyerOrderById, type Order } from "@/api/order.api";
-import { confirmFakeRazorpayPayment } from "@/api/payment.api";
+import { cancelOrder, confirmFakeOrderPayment, getBuyerOrderById, type Order } from "@/api/order.api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,8 +56,7 @@ export default function OrderDetail() {
   const queryClient = useQueryClient();
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [isFakePaymentDialogOpen, setIsFakePaymentDialogOpen] = useState(false);
+  const [isFakePaymentModalOpen, setIsFakePaymentModalOpen] = useState(false);
 
   const orderQuery = useQuery({
     queryKey: ["buyerOrder", id],
@@ -76,6 +75,19 @@ export default function OrderDetail() {
     },
     onError: () => {
       toast.error("Failed to cancel order");
+    },
+  });
+
+  const confirmPaymentMutation = useMutation({
+    mutationFn: () => confirmFakeOrderPayment(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["buyerOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["buyerOrder", id] });
+      setIsFakePaymentModalOpen(false);
+      toast.success("Payment confirmed successfully.");
+    },
+    onError: () => {
+      toast.error("Failed to confirm payment");
     },
   });
 
@@ -132,36 +144,6 @@ export default function OrderDetail() {
     }
   };
 
-  const handlePayNow = async () => {
-    if (!order) return;
-    setIsFakePaymentDialogOpen(true);
-    toast.info("Demo payment window opened. Confirm to complete payment.");
-  };
-
-  const handleConfirmFakePayment = async () => {
-    if (!order) {
-      return;
-    }
-
-    try {
-      setIsProcessingPayment(true);
-      await confirmFakeRazorpayPayment(order._id);
-      setIsFakePaymentDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["buyerOrder", id] });
-      queryClient.invalidateQueries({ queryKey: ["buyerOrders"] });
-      toast.success("Payment successful! Your order is confirmed.");
-    } catch {
-      toast.error("Payment failed. Please try again.");
-    } finally {
-      setIsProcessingPayment(false);
-    }
-  };
-
-  const handleCancelFakePayment = () => {
-    setIsFakePaymentDialogOpen(false);
-    toast.info("Payment cancelled.");
-  };
-
   const canCancel = order.status === "Placed" || order.status === "Confirmed";
   const canPayNow =
     order.paymentMethod === "Razorpay" &&
@@ -170,6 +152,8 @@ export default function OrderDetail() {
   const canDownloadInvoice =
     order.paymentStatus === "Paid" ||
     (order.paymentMethod === "COD" && order.status === "Delivered");
+
+  const paymentMethodLabel = order.paymentMethod === "Razorpay" ? "Razorpay" : "Cash on Delivery";
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-8">
@@ -194,7 +178,7 @@ export default function OrderDetail() {
           <div className="text-right">
             <Badge variant="outline" className={getStatusBadgeClass(order.status)}>{order.status}</Badge>
             <p className="mt-1 text-xs text-muted-foreground">
-              {order.paymentMethod === "Razorpay" ? "Online Payment" : "Cash on Delivery"} · {order.paymentStatus}
+              {paymentMethodLabel} · {order.paymentStatus}
             </p>
           </div>
         </CardContent>
@@ -334,33 +318,6 @@ export default function OrderDetail() {
               </Button>
             ) : null}
 
-            {canPayNow ? (
-              <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3">
-                <div>
-                  <p className="text-sm font-medium text-amber-800">Payment Required</p>
-                  {order.paymentDeadline ? (
-                    <p className="text-xs text-amber-700">
-                      Pay before:{" "}
-                      {new Date(order.paymentDeadline).toLocaleString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  ) : null}
-                </div>
-                <Button
-                  className="w-full bg-[#9b2c2c] text-white hover:bg-[#7f2323]"
-                  onClick={() => void handlePayNow()}
-                  disabled={isProcessingPayment}
-                >
-                  <HugeiconsIcon icon={CreditCardIcon} className="size-4" />
-                  {isProcessingPayment ? "Opening Payment..." : "Pay Now"}
-                </Button>
-              </div>
-            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -410,36 +367,66 @@ export default function OrderDetail() {
         </Card>
       ) : null}
 
-      <Dialog open={isFakePaymentDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCancelFakePayment()}>
-        <DialogContent className="sm:max-w-md">
+      {canPayNow ? (
+        <Card className="mt-4 border-primary/30 bg-primary/5">
+          <CardContent className="space-y-3 p-4">
+            <div className="inline-flex items-center gap-2 text-foreground">
+              <HugeiconsIcon icon={CreditCardIcon} className="size-4" />
+              <p className="font-medium">Payment Pending for Razorpay Order</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Complete the simulated Razorpay payment to mark this order as paid.
+            </p>
+            <Button onClick={() => setIsFakePaymentModalOpen(true)}>
+              <HugeiconsIcon icon={CheckmarkCircle01Icon} className="size-4" />
+              Pay Now
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Dialog
+        open={isFakePaymentModalOpen}
+        onOpenChange={(open) => {
+          if (confirmPaymentMutation.isPending) {
+            return;
+          }
+
+          setIsFakePaymentModalOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md" showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Razorpay Demo Confirmation</DialogTitle>
+            <DialogTitle>Confirm Simulated Razorpay Payment</DialogTitle>
             <DialogDescription>
-              This is a simulated payment window. Click confirm to mark this Razorpay payment as successful.
+              This development flow does not use the real Razorpay gateway. Confirm to mark this order as paid.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Amount</span>
-              <span className="font-semibold text-foreground">₹{order.totalAmount.toLocaleString("en-IN")}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Order</span>
-              <span className="font-mono text-xs text-foreground">#{order._id.slice(-8).toUpperCase()}</span>
-            </div>
+          <div className="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+            Order Total: <span className="font-medium text-foreground">₹{order.totalAmount.toLocaleString("en-IN")}</span>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleCancelFakePayment} disabled={isProcessingPayment}>
-              Cancel Payment
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsFakePaymentModalOpen(false)}
+              disabled={confirmPaymentMutation.isPending}
+            >
+              Cancel
             </Button>
-            <Button onClick={() => void handleConfirmFakePayment()} disabled={isProcessingPayment}>
-              {isProcessingPayment ? "Confirming..." : "Confirm Payment"}
+            <Button
+              type="button"
+              onClick={() => confirmPaymentMutation.mutate()}
+              disabled={confirmPaymentMutation.isPending}
+            >
+              {confirmPaymentMutation.isPending ? "Confirming..." : "Confirm Payment"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </section>
   );
 }

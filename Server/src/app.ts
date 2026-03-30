@@ -11,7 +11,6 @@ import cartRoutes from "./routes/cart.routes";
 import couponRoutes from "./routes/coupon.routes";
 import notificationRoutes from "./routes/notification.routes";
 import orderRoutes from "./routes/order.routes";
-import paymentRoutes from "./routes/payment.routes";
 import profileRoutes from "./routes/profile.routes";
 import productRoutes from "./routes/product.routes";
 import reviewRoutes from "./routes/review.routes";
@@ -28,7 +27,6 @@ app.use(
     credentials: true,
   })
 );
-app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -48,11 +46,10 @@ app.get("/api/health", (_req, res) => {
   return sendSuccess(res, "BidKart server is running", { ok: true });
 });
 
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", authRateLimiter, authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/payments", paymentRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/users", profileRoutes);

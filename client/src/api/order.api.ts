@@ -33,9 +33,6 @@ export interface Order {
   status: "Placed" | "Confirmed" | "Packed" | "Shipped" | "Delivered" | "Cancelled";
   paymentMethod: "COD" | "Razorpay";
   paymentStatus: "Pending" | "Paid" | "Refunded";
-  paymentDeadline?: string;
-  razorpayOrderId?: string;
-  razorpayPaymentId?: string;
   invoiceNumber?: string;
   cancelReason: string;
   createdAt: string;
@@ -107,6 +104,14 @@ export async function placeOrder(
     ...(couponCode ? { couponCode } : {}),
   });
 
+  return response.data?.data?.order;
+}
+
+/**
+ * Confirms a fake Razorpay payment for a buyer order.
+ */
+export async function confirmFakeOrderPayment(id: string): Promise<Order> {
+  const response = await axiosInstance.post(`/orders/${id}/fake-confirm`);
   return response.data?.data?.order;
 }
 

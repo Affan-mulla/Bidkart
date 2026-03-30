@@ -53,11 +53,9 @@ Existing e-commerce platforms either focus on fixed-price shopping (Amazon, Flip
 BidKart uses a secure JWT-based authentication system with OAuth support for Google login. Every user registers with email verification. Sellers go through an additional KYC step where they upload identity documents before being allowed to list products.
 
 - JWT access tokens + refresh token rotation
-- Google OAuth via Passport.js
 - Email verification on signup
 - Forgot password with OTP via email
 - Role-based route protection on both frontend and backend
-- Seller KYC with document upload (Cloudinary)
 - User profile management with address book
 
 ### 2. Product Management
@@ -97,9 +95,9 @@ A seamless cart and checkout flow supporting multiple addresses, coupon codes, a
 
 ### 5. Payment System
 
-BidKart integrates Razorpay (or Stripe for international) for secure payments. An escrow mechanism holds auction payments until delivery is confirmed.
+BidKart supports secure payment handling and an escrow mechanism that holds auction payments until delivery is confirmed.
 
-- Razorpay / Stripe payment gateway
+- Payment gateway integration
 - UPI, card, net banking, wallet support
 - Escrow system for auction payments
 - Automatic seller payout after order completion
@@ -299,7 +297,7 @@ bidkart/
 | --- | --- | --- |
 | **Month 1** | Foundation | Project setup, auth system, DB schema, role-based routing, basic UI shell |
 | **Month 2** | Core Commerce | Product CRUD, image upload, search & filters, category system, seller onboarding |
-| **Month 3** | Transactions | Cart, checkout, Razorpay integration, order management, email notifications |
+| **Month 3** | Transactions | Cart, checkout, payment integration, order management, email notifications |
 | **Month 4** | Auction System | Real-time bidding with [Socket.io](http://Socket.io), Redis bid locking, auto-bid, anti-snipe, escrow |
 | **Month 5** | Polish & Features | Admin panel, reviews, chat system, seller analytics, shipment tracking |
 | **Month 6** | Deployment & Docs | AI recommendations, Docker setup, CI/CD, full testing, documentation, demo prep |

@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import Cart from "../models/Cart.model";
-import Order, { IOrderDocument, IShippingAddress, OrderStatus, PaymentMethod } from "../models/Order.model";
+import Order, { IOrderDocument, IShippingAddress, OrderStatus } from "../models/Order.model";
 import { getNextInvoiceNumber } from "../models/Counter.model";
 import Product from "../models/Product.model";
 import AppError from "../utils/appError";
@@ -55,7 +55,7 @@ const ensureValidOrderId = (orderId: string) => {
 export const placeOrder = async (
   buyerId: string,
   shippingAddress: IShippingAddress,
-  paymentMethod: PaymentMethod,
+  paymentMethod: "COD" | "Razorpay",
   couponCode?: string
 ): Promise<IOrderDocument> => {
   validateShippingAddress(shippingAddress);
@@ -163,6 +163,46 @@ export const placeOrder = async (
     type: "order_update",
     title: "Order Placed",
     message: `Your order #${String(order._id).slice(-8).toUpperCase()} has been placed successfully.`,
+    link: `/orders/${String(order._id)}`,
+  });
+
+  return order;
+};
+
+/**
+ * Simulate successful Razorpay payment confirmation for a buyer order.
+ */
+export const confirmFakeRazorpayPayment = async (
+  orderId: string,
+  buyerId: string
+): Promise<IOrderDocument> => {
+  ensureValidOrderId(orderId);
+
+  const order = await Order.findOne({
+    _id: new Types.ObjectId(orderId),
+    buyerId: new Types.ObjectId(buyerId),
+  });
+
+  if (!order) {
+    throw new AppError("Order not found", 404);
+  }
+
+  if (order.paymentMethod !== "Razorpay") {
+    throw new AppError("This order does not use Razorpay", 400);
+  }
+
+  if (order.paymentStatus === "Paid") {
+    throw new AppError("Order already paid", 400);
+  }
+
+  order.paymentStatus = "Paid";
+  order.invoiceNumber = await getNextInvoiceNumber();
+  await order.save();
+
+  await createNotification(buyerId, {
+    type: "payment_received",
+    title: "Payment Confirmed",
+    message: `Payment of Rs.${order.totalAmount.toLocaleString("en-IN")} received for order #${order.invoiceNumber}.`,
     link: `/orders/${String(order._id)}`,
   });
 

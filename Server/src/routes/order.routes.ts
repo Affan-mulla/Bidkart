@@ -1,6 +1,8 @@
 import express from "express";
 import {
   cancelOrder,
+  confirmFakePayment,
+  downloadInvoiceHandler,
   exportSellerOrders,
   getBuyerOrderById,
   getBuyerOrders,
@@ -9,7 +11,6 @@ import {
   placeOrder,
   updateOrderStatus,
 } from "../controllers/order.controller";
-import { downloadInvoiceHandler } from "../controllers/payment.controller";
 import { protect, roleGuard } from "../middleware/auth.middleware";
 
 const router = express.Router();
@@ -17,6 +18,7 @@ const router = express.Router();
 router.post("/", protect, roleGuard("buyer"), placeOrder);
 router.get("/", protect, roleGuard("buyer"), getBuyerOrders);
 router.patch("/:id/cancel", protect, roleGuard("buyer"), cancelOrder);
+router.post("/:id/fake-confirm", protect, roleGuard("buyer"), confirmFakePayment);
 router.get("/seller/export", protect, roleGuard("seller"), exportSellerOrders);
 router.get("/seller", protect, roleGuard("seller"), getSellerOrders);
 router.get("/seller/:id", protect, roleGuard("seller"), getSellerOrderById);

@@ -74,18 +74,22 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
     },
     passwordResetOtp: {
       type: String,
+      select: false,
       default: null,
     },
     passwordResetOtpExpiry: {
       type: Date,
+      select: false,
       default: null,
     },
     emailVerificationOtp: {
       type: String,
+      select: false,
       default: null,
     },
     emailVerificationOtpExpiry: {
       type: Date,
+      select: false,
       default: null,
     },
     addresses: {
@@ -132,6 +136,10 @@ userSchema.set("toJSON", {
     const sanitized = ret as unknown as Record<string, unknown>;
     delete sanitized.password;
     delete sanitized.refreshToken;
+    delete sanitized.passwordResetOtp;
+    delete sanitized.passwordResetOtpExpiry;
+    delete sanitized.emailVerificationOtp;
+    delete sanitized.emailVerificationOtpExpiry;
     delete sanitized.__v;
     return sanitized;
   },

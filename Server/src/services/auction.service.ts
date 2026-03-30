@@ -615,9 +615,8 @@ export const endAuction = async (auctionId: string): Promise<IAuctionDocument> =
         deliveryCharge: 0,
         totalAmount: auction.currentBid,
         status: "Placed",
-        paymentMethod: "Razorpay",
+        paymentMethod: "COD",
         paymentStatus: "Pending",
-        paymentDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
         cancelReason: "",
       });
 
@@ -654,36 +653,7 @@ export const endAuction = async (auctionId: string): Promise<IAuctionDocument> =
  * Cancel unpaid auction winner orders that exceeded payment deadline.
  */
 export const cancelExpiredAuctionOrders = async () => {
-  const now = new Date();
-
-  const expiredOrders = await Order.find({
-    paymentMethod: "Razorpay",
-    paymentStatus: "Pending",
-    status: "Placed",
-    paymentDeadline: { $ne: null, $lte: now },
-  });
-
-  for (const order of expiredOrders) {
-    order.status = "Cancelled";
-    order.cancelReason = "Payment not completed within 24 hours";
-    await order.save();
-
-    await Promise.all(
-      order.items.map((item) =>
-        Product.findByIdAndUpdate(item.productId, {
-          $inc: { stock: item.quantity },
-        })
-      )
-    );
-
-    await createNotification(String(order.buyerId), {
-      type: "order_update",
-      title: "Auction Order Cancelled",
-      message:
-        "Your won auction order was cancelled because payment was not completed within 24 hours.",
-      link: `/orders/${String(order._id)}`,
-    });
-  }
+  return;
 };
 
 /**

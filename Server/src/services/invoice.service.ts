@@ -148,10 +148,6 @@ export function streamInvoicePDF(order: IOrderDocument, buyerEmail: string, res:
   doc.text(`Payment Method: ${order.paymentMethod}`, left, paymentTop + 16);
   doc.text(`Payment Status: ${order.paymentStatus}`, left, paymentTop + 32);
 
-  if (order.razorpayPaymentId) {
-    doc.text(`Transaction ID: ${order.razorpayPaymentId}`, left, paymentTop + 48);
-  }
-
   doc.fillColor("#888888").font("Helvetica").fontSize(9).text(
     "This is a computer-generated invoice. No signature required.",
     left,

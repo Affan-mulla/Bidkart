@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from "express";
+import Order from "../models/Order.model";
 import { IUserDocument } from "../models/User.model";
 import * as exportService from "../services/export.service";
+import * as invoiceService from "../services/invoice.service";
 import * as orderService from "../services/order.service";
 import AppError from "../utils/appError";
 import { sendSuccess } from "../utils/response.utils";
@@ -161,6 +163,56 @@ export const cancelOrder = async (req: Request, res: Response, next: NextFunctio
     const order = await orderService.cancelOrder(orderId, String(authUser._id), reason);
 
     return sendSuccess(res, "Order cancelled", { order });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Confirm simulated Razorpay payment for a buyer order.
+ */
+export const confirmFakePayment = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authUser = req.user as IUserDocument | undefined;
+
+    if (!authUser) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const orderId = getParamId(req.params.id);
+    const order = await orderService.confirmFakeRazorpayPayment(orderId, String(authUser._id));
+
+    return sendSuccess(res, "Payment confirmed successfully", { order });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Download order invoice PDF.
+ */
+export const downloadInvoiceHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authUser = req.user as IUserDocument | undefined;
+
+    if (!authUser) {
+      throw new AppError("Unauthorized", 401);
+    }
+
+    const order = await Order.findOne({
+      _id: req.params.id,
+      buyerId: authUser._id,
+    });
+
+    if (!order) {
+      throw new AppError("Order not found", 404);
+    }
+
+    if (order.paymentStatus !== "Paid") {
+      throw new AppError("Invoice not available yet", 403);
+    }
+
+    invoiceService.streamInvoicePDF(order, authUser.email, res);
   } catch (error) {
     return next(error);
   }

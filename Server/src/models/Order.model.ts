@@ -47,9 +47,6 @@ export interface IOrder {
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   paymentDeadline?: Date;
-  razorpayOrderId?: string;
-  razorpayPaymentId?: string;
-  razorpaySignature?: string;
   invoiceNumber?: string;
   cancelReason: string;
   createdAt?: Date;
@@ -216,21 +213,6 @@ const orderSchema = new Schema<IOrder>(
     paymentDeadline: {
       type: Date,
       default: null,
-    },
-    razorpayOrderId: {
-      type: String,
-      default: null,
-      trim: true,
-    },
-    razorpayPaymentId: {
-      type: String,
-      default: null,
-      trim: true,
-    },
-    razorpaySignature: {
-      type: String,
-      default: null,
-      trim: true,
     },
     invoiceNumber: {
       type: String,

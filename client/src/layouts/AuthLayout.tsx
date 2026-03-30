@@ -6,10 +6,8 @@ import { Outlet } from "react-router-dom"
 export default function AuthLayout() {
   return (
     <div className="min-h-screen bg-[#f6f3f2] md:grid md:grid-cols-2">
-      <aside className="relative hidden overflow-hidden bg-[#6f1d1d] p-10 text-white md:flex md:flex-col md:justify-between">
-        <div className="absolute -left-24 -top-20 size-72 rounded-full bg-[#9b2c2c]/40 blur-2xl" />
-        <div className="absolute -bottom-24 -right-20 size-72 rounded-full bg-[#b34040]/35 blur-2xl" />
-        <div className="absolute left-1/2 top-1/2 size-80 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10" />
+      <aside className="relative hidden overflow-hidden  p-10 text-white md:flex md:flex-col md:justify-between">
+       <img src="/1.jpg" alt="" className=" absolute inset-0 object-cover brightness-75" />
 
         <div className="relative z-10 flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-xl bg-white/10">

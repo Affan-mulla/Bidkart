@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { z } from "zod"
 
 import PasswordInput from "@/components/auth/PasswordInput"
+import { isEmailVerificationEnabled } from "@/config/features"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,6 +31,7 @@ export default function LoginForm() {
   const navigate = useNavigate()
   const location = useLocation()
   const setCredentials = useAuthStore((state) => state.setCredentials)
+  const setPendingEmail = useAuthStore((state) => state.setPendingEmail)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const callbackUrl = new URLSearchParams(location.search).get("callbackUrl")
@@ -59,7 +61,18 @@ export default function LoginForm() {
 
       navigate(roleRouteMap[user.role], { replace: true })
     } catch (error) {
-      toast.error(extractApiErrorMessage(error, "Unable to log in. Please check your credentials."))
+      const errorMessage = extractApiErrorMessage(error, "Unable to log in. Please check your credentials.")
+      const isUnverifiedEmailError = /verify\s+your\s+email/i.test(errorMessage)
+
+      if (isEmailVerificationEnabled && isUnverifiedEmailError) {
+        setPendingEmail(values.email)
+        sessionStorage.setItem("bidkart_pending_email", values.email)
+        toast.info("Please verify your email to continue. Enter the OTP we sent to your inbox.")
+        navigate("/verify-email")
+        return
+      }
+
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }

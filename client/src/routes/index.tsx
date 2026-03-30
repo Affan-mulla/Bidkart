@@ -1,4 +1,5 @@
 import AppLayout from "@/layouts/AppLayout";
+import AuthLayout from "@/layouts/AuthLayout";
 import AuctionDetail from "@/pages/auction/AuctionDetail";
 import AuctionList from "@/pages/auction/AuctionList";
 import { isEmailVerificationEnabled } from "@/config/features";
@@ -37,14 +38,16 @@ export default function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route path="/register/seller" element={<SellerRegisterPage />} />
-      <Route
-        path="/verify-email"
-        element={
-          isEmailVerificationEnabled ? <VerifyEmailPage /> : <Navigate to="/login" replace />
-        }
-      />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route element={<AuthLayout />}>
+        <Route
+          path="/verify-email"
+          element={
+            isEmailVerificationEnabled ? <VerifyEmailPage /> : <Navigate to="/login" replace />
+          }
+        />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+      </Route>
 
       {/* RoleLayout wraps ALL routes — navbar is always present */}
       <Route element={<AppLayout />}>

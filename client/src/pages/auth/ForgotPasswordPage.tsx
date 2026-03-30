@@ -55,14 +55,14 @@ export default function ForgotPasswordPage() {
   })
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h2 className="text-2xl font-semibold text-foreground">Forgot password</h2>
-        <p className="text-sm text-muted-foreground">Enter your email to receive a reset code.</p>
+    <div className="space-y-7">
+      <div className="space-y-2">
+        <h2 className="text-balance text-2xl font-semibold text-foreground sm:text-3xl">Forgot password</h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">Enter your account email and we&apos;ll send you a one-time code to reset your password.</p>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div className="space-y-1.5">
+      <form onSubmit={onSubmit} className="space-y-5">
+        <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium text-gray-700">
             Email
           </label>
@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
 
         {message ? (
           <div
-            className={`rounded-md border p-3 text-xs ${
+            className={`rounded-lg border p-3 text-sm ${
               isSuccess
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                 : "border-destructive/30 bg-destructive/10 text-destructive"
@@ -91,6 +91,10 @@ export default function ForgotPasswordPage() {
         <Button type="submit" disabled={isSubmitting} className="h-11 w-full bg-[#9b2c2c] text-white hover:bg-[#7f2323]">
           {isSubmitting ? "Sending code..." : "Send reset code"}
         </Button>
+
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
+          The code expires soon for security. Check your spam folder if you don&apos;t see the email.
+        </p>
       </form>
     </div>
   )

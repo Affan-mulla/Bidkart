@@ -119,17 +119,6 @@ export default function Orders() {
                   <Badge variant="outline" className={getStatusBadgeClass(order.status)}>
                     {order.status}
                   </Badge>
-
-                  {order.paymentMethod === "Razorpay" &&
-                  order.paymentStatus === "Pending" &&
-                  order.status === "Placed" ? (
-                    <Badge
-                      variant="outline"
-                      className="border-amber-300 bg-amber-50 text-amber-700 animate-pulse"
-                    >
-                      Payment Required
-                    </Badge>
-                  ) : null}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -147,11 +136,17 @@ export default function Orders() {
                   {order.items.length > 2 ? (
                     <p className="text-xs text-muted-foreground">+ {order.items.length - 2} more items</p>
                   ) : null}
+
+                  {order.paymentMethod === "Razorpay" && order.paymentStatus === "Pending" && order.status === "Placed" ? (
+                    <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+                      Payment Required
+                    </Badge>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-muted-foreground">
-                    {order.items.length} item(s) · ₹{order.totalAmount.toLocaleString("en-IN")} · COD
+                    {order.items.length} item(s) · ₹{order.totalAmount.toLocaleString("en-IN")} · {order.paymentMethod === "Razorpay" ? "Razorpay" : "COD"}
                   </p>
                   <Button
                     variant="outline"
