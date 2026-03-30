@@ -1,3 +1,4 @@
+import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -15,14 +16,17 @@ import {
 } from "@hugeicons/core-free-icons";
 
 import {
+  type CatalogProduct,
   getMonthlyMostSoldProducts,
   getProducts,
+  type MonthlyMostSoldProduct,
   type SearchProduct,
 } from "@/api/product.api";
 import ProductCard from "@/components/search/ProductCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CATEGORIES = [
@@ -52,50 +56,142 @@ const TRUST_SIGNALS = [
   },
 ];
 
+const HERO_DISCOVERY_LINKS = [
+  { label: "Today Deals", href: "/products?sort=newest" },
+  { label: "Top Rated", href: "/products?sort=ratings" },
+  { label: "Trending Bids", href: "/auctions" },
+  { label: "Best Sellers", href: "/products?sort=popular" },
+];
+
+const toSearchProduct = (
+  product: CatalogProduct | MonthlyMostSoldProduct,
+): SearchProduct => ({
+  ...product,
+  variants: [],
+});
+
 /**
  * Renders the buyer landing page with discovery-first sections.
  */
 export default function Home() {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleHeroSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedQuery = searchQuery.trim();
+    navigate(`/s?q=${encodeURIComponent(normalizedQuery)}`);
+  };
 
   const featuredProductsQuery = useQuery({
     queryKey: ["featuredProducts"],
-    queryFn: () => getProducts({ limit: 10, sort: "newest" }),
+    queryFn: () => getProducts({ limit: 4, sort: "newest" }),
   });
   return (
     <main className="bg-background pb-12">
-      <section className="border-b border-border/60 bg-[radial-gradient(circle_at_top,oklch(0.97_0.03_75)_0%,transparent_45%)]">
-        <div className="mx-auto max-w-7xl px-4 py-14 md:py-20 lg:px-8">
-          <div className="max-w-3xl space-y-6">
-            <Badge
-              variant="secondary"
-              className="rounded-full px-3 py-1 text-xs tracking-wide"
-            >
-              Curated marketplace with live auctions
-            </Badge>
-            <h1 className="text-4xl font-bold leading-tight text-foreground md:text-5xl">
-              <span className="block">Shop Smarter.</span>
-              <span className="block">Bid Better.</span>
-            </h1>
-            <p className="max-w-2xl text-base text-muted-foreground md:text-lg">
-              Discover thousands of products or win exclusive deals in live
-              auctions.
-            </p>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button
-                size="lg"
-                onClick={() => navigate("/products")}
-                
+      <section className="relative overflow-hidden border-b border-border/60 bg-[radial-gradient(circle_at_top,oklch(0.97_0.03_75)_0%,transparent_50%)]">
+        <div
+          className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
+          aria-hidden
+        />
+
+        <div className="relative mx-auto max-w-7xl px-4 py-12 md:py-16 lg:px-8 lg:py-20">
+          <div className="space-y-7">
+            <div className="space-y-4">
+              <Badge
+                variant="secondary"
+                className="rounded-full px-3 py-1 text-xs tracking-wide"
               >
+                Curated marketplace with live auctions
+              </Badge>
+              <h1 className="max-w-4xl text-4xl font-bold leading-tight text-foreground md:text-5xl lg:text-6xl">
+                Discover trusted products, daily deals, and live auction drops.
+              </h1>
+              <p className="max-w-3xl text-base text-muted-foreground md:text-lg">
+                Find what you need faster with smart search, category shortcuts,
+                and a checkout flow built for confident ecommerce buying.
+              </p>
+            </div>
+
+            <form
+              onSubmit={handleHeroSearch}
+              className="rounded-2xl border border-border/80 bg-card/90 p-3 shadow-sm backdrop-blur"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search for phones, shoes, books and more"
+                  className="h-11 border-border/80"
+                  aria-label="Search products"
+                />
+                <Button type="submit" size="lg" className="h-11 px-6">
+                  Search
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {CATEGORIES.slice(0, 4).map((category) => (
+                  <Button
+                    key={category.label}
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 rounded-full px-3"
+                    onClick={() =>
+                      navigate(
+                        `/products?category=${encodeURIComponent(category.label)}`,
+                      )
+                    }
+                  >
+                    {category.label}
+                  </Button>
+                ))}
+              </div>
+            </form>
+
+            <div className="flex flex-wrap gap-3">
+              <Button size="lg" onClick={() => navigate("/products")}>
                 Browse Products
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => navigate("/s?q=")}
+                onClick={() => navigate("/auctions")}
               >
-                Search Items
+                Explore Auctions
               </Button>
+            </div>
+
+            <div className="rounded-2xl border border-border/80 bg-card/80 p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-foreground">
+                  Popular ways to shop today
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/products")}
+                >
+                  See all
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {HERO_DISCOVERY_LINKS.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    className="flex items-center justify-between rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                    onClick={() => navigate(item.href)}
+                  >
+                    <span>{item.label}</span>
+                    <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -161,7 +257,7 @@ export default function Home() {
 
         {featuredProductsQuery.isLoading ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {Array.from({ length: 10 }).map((_, index) => (
+            {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
                 className="space-y-3 rounded-lg border border-border bg-card p-3"
@@ -183,10 +279,10 @@ export default function Home() {
 
         {!featuredProductsQuery.isLoading && !featuredProductsQuery.isError ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {(featuredProductsQuery.data?.products ?? []).map((product) => (
+            {(featuredProductsQuery.data?.products ?? []).slice(0, 4).map((product) => (
               <ProductCard
                 key={product._id}
-                product={product as SearchProduct}
+                product={toSearchProduct(product)}
               />
             ))}
           </div>
@@ -342,9 +438,26 @@ const NewArrivalCard = () => {
 const MostSoldProductsCard = () => {
   const mostSoldProductsQuery = useQuery({
     queryKey: ["mostSoldProductsOfMonth"],
-    queryFn: () => getMonthlyMostSoldProducts(8),
+    queryFn: () => getMonthlyMostSoldProducts(4),
+  });
+  const fallbackProductsQuery = useQuery({
+    queryKey: ["mostSoldProductsFallback"],
+    queryFn: () => getProducts({ limit: 4, sort: "newest" }),
+    enabled:
+      !mostSoldProductsQuery.isLoading &&
+      !mostSoldProductsQuery.isError &&
+      (mostSoldProductsQuery.data?.products ?? []).length === 0,
   });
   const navigate = useNavigate();
+  const mostSoldProducts = (mostSoldProductsQuery.data?.products ?? []).map((product) =>
+    toSearchProduct(product),
+  );
+  const fallbackProducts = (fallbackProductsQuery.data?.products ?? []).map((product) =>
+    toSearchProduct(product),
+  );
+  const displayedProducts =
+    (mostSoldProducts.length > 0 ? mostSoldProducts : fallbackProducts).slice(0, 4);
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-6 lg:px-8">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -366,9 +479,9 @@ const MostSoldProductsCard = () => {
         </button>
       </div>
 
-      {mostSoldProductsQuery.isLoading ? (
+      {mostSoldProductsQuery.isLoading || fallbackProductsQuery.isLoading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, index) => (
+          {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={index}
               className="space-y-3 rounded-lg border border-border bg-card p-3"
@@ -388,12 +501,22 @@ const MostSoldProductsCard = () => {
         </p>
       ) : null}
 
-      {!mostSoldProductsQuery.isLoading && !mostSoldProductsQuery.isError ? (
+      {!mostSoldProductsQuery.isLoading &&
+      !mostSoldProductsQuery.isError &&
+      displayedProducts.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {(mostSoldProductsQuery.data?.products ?? []).map((product) => (
-            <ProductCard key={product._id} product={product as SearchProduct} />
+          {displayedProducts.map((product) => (
+            <ProductCard key={product._id} product={product} />
           ))}
         </div>
+      ) : null}
+
+      {!mostSoldProductsQuery.isLoading &&
+      !mostSoldProductsQuery.isError &&
+      displayedProducts.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No sold products yet this month. Check out newly listed items instead.
+        </p>
       ) : null}
     </section>
   );

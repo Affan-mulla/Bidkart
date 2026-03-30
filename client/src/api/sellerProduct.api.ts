@@ -3,6 +3,7 @@ import axiosInstance from "@/api/axiosInstance"
 export interface ProductVariant {
   key: string
   value: string
+  images: string[]
 }
 
 export interface Product {

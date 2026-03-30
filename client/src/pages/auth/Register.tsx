@@ -58,7 +58,7 @@ const Register = () => {
             <span className="text-xl">BidKart</span>
           </div>
 
-          <div className="mx-auto flex w-full max-w-md flex-col rounded-2xl border border-border/60 bg-background/95 p-4 shadow-sm backdrop-blur-sm">
+          <div className="mx-auto flex w-full max-w-md flex-col rounded-2xl border border-border/60 bg-background/95 px-4 py-15 shadow-sm backdrop-blur-sm">
             <div className="mb-8">
               <div className="hidden lg:flex size-10 items-center justify-center mb-6 rounded-lg bg-primary/10 text-primary">
                  <HugeiconsIcon icon={ShoppingBagIcon} size={24} />
@@ -69,14 +69,7 @@ const Register = () => {
 
             <BuyerRegisterForm />
 
-            <div className="mt-2 border-t border-border/70 pt-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Secure Payments By</p>
-              <div className="flex items-center gap-6 opacity-60 grayscale dark:opacity-40">
-                <span className="font-bold text-lg">Razorpay</span>
-                <span className="font-bold text-lg italic">VISA</span>
-                <span className="font-bold text-lg tracking-tighter">MasterCard</span>
-              </div>
-            </div>
+           
           </div>
         </div>
       </div>

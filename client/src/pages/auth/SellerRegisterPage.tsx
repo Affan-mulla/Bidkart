@@ -62,7 +62,7 @@ export default function SellerRegisterPage() {
             <span className="text-xl">BidKart</span>
           </div>
 
-          <div className="mx-auto flex w-full max-w-md flex-col rounded-2xl border border-border/60 bg-background/95 p-6 shadow-sm backdrop-blur-sm">
+          <div className="mx-auto flex w-full max-w-md flex-col rounded-2xl border border-border/60 bg-background/95 px-6 py-13 shadow-sm backdrop-blur-sm">
             <div className="mb-8">
               <div className="mb-6 hidden size-10 items-center justify-center rounded-lg bg-primary/10 text-primary lg:flex">
                 <HugeiconsIcon icon={ShoppingBagIcon} size={24} />

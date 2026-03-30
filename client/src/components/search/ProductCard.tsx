@@ -36,7 +36,7 @@ const formatPrice = (price: number) =>
 export default function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const imageUrl = product.images?.[0] || "https://placehold.co/600x400?text=No+Image";
+  const imageUrl = product.images?.[0] || product.variants?.[0]?.images?.[0] || "https://placehold.co/600x400?text=No+Image";
   const rating = Number(product.ratings || 0).toFixed(1);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isWishlisted = useWishlistStore((state) => state.isWishlisted(product._id));

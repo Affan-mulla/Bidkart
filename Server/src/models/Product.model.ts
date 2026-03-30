@@ -6,7 +6,7 @@ export interface IProduct {
   description: string;
   images: string[];
   category: string;
-  variants: unknown[];
+  variants: IProductVariant[];
   basePrice: number;
   stock: number;
   ratings: number;
@@ -14,6 +14,12 @@ export interface IProduct {
   tags: string[];
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface IProductVariant {
+  key: string;
+  value: string;
+  images: string[];
 }
 
 export type IProductDocument = Document<unknown, object, IProduct> & IProduct;
@@ -48,7 +54,29 @@ const productSchema = new Schema<IProduct>(
       index: true,
     },
     variants: {
-      type: [Schema.Types.Mixed],
+      type: [
+        new Schema<IProductVariant>(
+          {
+            key: {
+              type: String,
+              required: true,
+              trim: true,
+            },
+            value: {
+              type: String,
+              required: true,
+              trim: true,
+            },
+            images: {
+              type: [String],
+              default: [],
+            },
+          },
+          {
+            _id: false,
+          }
+        ),
+      ],
       default: [],
     },
     basePrice: {
@@ -85,6 +113,8 @@ const productSchema = new Schema<IProduct>(
     timestamps: true,
   }
 );
+
+productSchema.index({ "variants.key": 1, "variants.value": 1 });
 
 const Product = model<IProduct>("Product", productSchema);
 

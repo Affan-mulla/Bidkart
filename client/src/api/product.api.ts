@@ -7,6 +7,10 @@ export interface SearchProduct {
   ratings: number;
   basePrice: number;
   stock: number;
+  variants: ProductVariant[];
+  category: string;
+  sellerId: string;
+  createdAt: string;
 }
 
 export interface SearchProductsParams {
@@ -75,6 +79,7 @@ export interface CatalogProduct {
 export interface ProductVariant {
   key: string;
   value: string;
+  images: string[];
 }
 
 export interface ProductSeller {

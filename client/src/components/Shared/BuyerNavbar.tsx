@@ -22,6 +22,7 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 import { useEffect, useState } from "react";
 import { MapPinpoint01Icon, Menu01Icon, Search01Icon, ShoppingCart01Icon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 export default function BuyerNavbar() {
   const navigate = useNavigate();
@@ -96,7 +97,7 @@ export default function BuyerNavbar() {
   return (
     <>
       <nav
-        className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-b border-border 
+        className="top-0 z-50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-b border-border 
                       flex items-center justify-between px-4 lg:px-8 h-16 gap-4"
       >
         <div className="flex gap-4 items-center">
@@ -199,13 +200,12 @@ export default function BuyerNavbar() {
             /* Logged in — show avatar + dropdown */
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
-                  className="hidden sm:flex w-10 h-10 rounded-full bg-primary/10 text-primary 
-                                 text-sm font-semibold items-center justify-center 
-                                 ring-2 ring-transparent data-[state=open]:ring-primary/20 transition-all cursor-pointer"
-                >
-                  {initials || "U"}
-                </button>
+                <Avatar>
+                  <AvatarFallback className="bg-primary/10 text-primary w-full h-full flex items-center justify-center text-sm font-semibold">
+                    {initials || "U"}
+                  </AvatarFallback>
+                  <AvatarImage src={user?.avatar} alt={user?.name || "User Avatar"} />
+                </Avatar>
               </DropdownMenuTrigger>
 
               <DropdownMenuContent>

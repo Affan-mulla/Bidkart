@@ -7,6 +7,12 @@ import * as productService from "../services/product.service";
 import AppError from "../utils/appError";
 import { sendSuccess } from "../utils/response.utils";
 
+interface ParsedVariantPayload {
+  key: string;
+  value: string;
+  images: string[];
+}
+
 /**
  * Public product search with pagination, filtering and sorting.
  */
@@ -32,6 +38,8 @@ export const searchProducts = async (req: Request, res: Response, next: NextFunc
       query.$or = [
         { title: { $regex: String(q), $options: "i" } },
         { tags: { $regex: String(q), $options: "i" } },
+        { "variants.key": { $regex: String(q), $options: "i" } },
+        { "variants.value": { $regex: String(q), $options: "i" } },
       ];
     }
 
@@ -83,7 +91,7 @@ export const searchProducts = async (req: Request, res: Response, next: NextFunc
 
     const [products, total] = await Promise.all([
       Product.find(query)
-        .select("_id title images basePrice category ratings reviewsCount stock sellerId")
+        .select("_id title images variants basePrice category ratings reviewsCount stock sellerId")
         .sort(sortObj)
         .skip(skip)
         .limit(parsedLimit),
@@ -141,6 +149,33 @@ const parseArrayField = (value: unknown): unknown[] | undefined => {
 };
 
 /**
+ * Parse variants into normalized object array.
+ */
+const parseVariantsField = (value: unknown): ParsedVariantPayload[] | undefined => {
+  const parsedArray = parseArrayField(value);
+
+  if (parsedArray === undefined) {
+    return undefined;
+  }
+
+  return parsedArray
+    .map((variant) => {
+      const maybeVariant = variant as { key?: unknown; value?: unknown; images?: unknown };
+
+      return {
+        key: typeof maybeVariant.key === "string" ? maybeVariant.key.trim() : "",
+        value: typeof maybeVariant.value === "string" ? maybeVariant.value.trim() : "",
+        images: Array.isArray(maybeVariant.images)
+          ? maybeVariant.images.filter(
+              (image): image is string => typeof image === "string" && image.trim().length > 0
+            )
+          : [],
+      };
+    })
+    .filter((variant) => variant.key.length > 0 || variant.value.length > 0);
+};
+
+/**
  * Parse numeric fields from request body.
  */
 const parseOptionalNumber = (value: unknown): number | undefined => {
@@ -169,10 +204,88 @@ const extractUploadedImageUrls = (files: Request["files"]): string[] => {
   }
 
   return files
+    .filter((file) => file.fieldname === "images")
     .map((file) => {
       const maybeFile = file as Express.Multer.File & { path?: string; secure_url?: string };
       return maybeFile.path || maybeFile.secure_url || "";
     })
+    .filter(Boolean);
+};
+
+/**
+ * Group uploaded variant image URLs by variant index from field names like variantImages.0.
+ */
+const extractUploadedVariantImageMap = (files: Request["files"]): Record<number, string[]> => {
+  if (!files || !Array.isArray(files)) {
+    return {};
+  }
+
+  return files.reduce<Record<number, string[]>>((accumulator, file) => {
+    const matched = file.fieldname.match(/^variantImages[.-](\d+)$/i);
+
+    if (!matched) {
+      return accumulator;
+    }
+
+    const variantIndex = Number.parseInt(matched[1], 10);
+
+    if (Number.isNaN(variantIndex)) {
+      return accumulator;
+    }
+
+    const maybeFile = file as Express.Multer.File & { path?: string; secure_url?: string };
+    const fileUrl = maybeFile.path || maybeFile.secure_url || "";
+
+    if (!fileUrl) {
+      return accumulator;
+    }
+
+    if (!accumulator[variantIndex]) {
+      accumulator[variantIndex] = [];
+    }
+
+    accumulator[variantIndex].push(fileUrl);
+    return accumulator;
+  }, {});
+};
+
+/**
+ * Extract shared variant image URLs from field name sharedVariantImages.
+ */
+const extractUploadedSharedVariantImageUrls = (files: Request["files"]): string[] => {
+  if (!files || !Array.isArray(files)) {
+    return [];
+  }
+
+  return files
+    .filter((file) => file.fieldname === "sharedVariantImages")
+    .map((file) => {
+      const maybeFile = file as Express.Multer.File & { path?: string; secure_url?: string };
+      return maybeFile.path || maybeFile.secure_url || "";
+    })
+    .filter(Boolean);
+};
+
+/**
+ * Parse tags from JSON array or comma-separated text.
+ */
+const parseTagsField = (value: unknown): string[] | undefined => {
+  const parsedArray = parseArrayField(value);
+
+  if (parsedArray) {
+    return parsedArray
+      .filter((item): item is string => typeof item === "string")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
     .filter(Boolean);
 };
 
@@ -184,11 +297,63 @@ const getNormalizedProductPayload = (body: Request["body"]) => {
     title: body.title,
     description: body.description,
     category: body.category,
-    variants: parseArrayField(body.variants),
-    tags: parseArrayField(body.tags) as string[] | undefined,
+    variants: parseVariantsField(body.variants),
+    tags: parseTagsField(body.tags),
     basePrice: parseOptionalNumber(body.basePrice),
     stock: parseOptionalNumber(body.stock),
   };
+};
+
+/**
+ * Apply uploaded variant image URLs to parsed variants by index.
+ */
+const applyVariantImages = (
+  variants: ParsedVariantPayload[] | undefined,
+  files: Request["files"]
+): ParsedVariantPayload[] | undefined => {
+  if (!variants) {
+    return variants;
+  }
+
+  const variantImageMap = extractUploadedVariantImageMap(files);
+  const sharedVariantImages = extractUploadedSharedVariantImageUrls(files);
+
+  return variants.map((variant, index) => {
+    const uploadedImages = variantImageMap[index] || [];
+
+    if (uploadedImages.length > 0) {
+      return {
+        ...variant,
+        images: uploadedImages,
+      };
+    }
+
+    if (sharedVariantImages.length === 0) {
+      return variant;
+    }
+
+    return {
+      ...variant,
+      images: sharedVariantImages,
+    };
+  });
+};
+
+/**
+ * Validate that variant image uploads are only used when variants are supplied.
+ */
+const assertVariantUploadConsistency = (
+  variants: ParsedVariantPayload[] | undefined,
+  files: Request["files"]
+) => {
+  const variantImageMap = extractUploadedVariantImageMap(files);
+  const sharedVariantImages = extractUploadedSharedVariantImageUrls(files);
+  const hasVariantImageUploads = Object.keys(variantImageMap).length > 0 || sharedVariantImages.length > 0;
+  const hasVariants = Boolean(variants && variants.length > 0);
+
+  if (hasVariantImageUploads && !hasVariants) {
+    throw new AppError("Variant images can only be uploaded when variants are provided", 400);
+  }
 };
 
 /**
@@ -282,7 +447,7 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
 
     const [products, total] = await Promise.all([
       Product.find(query)
-        .select("_id title images basePrice category ratings reviewsCount stock sellerId createdAt")
+        .select("_id title images variants basePrice category ratings reviewsCount stock sellerId createdAt")
         .sort(sortObj)
         .skip(skip)
         .limit(parsedLimit),
@@ -375,7 +540,12 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
 
     const sellerId = String(authUser._id);
     const imageUrls = extractUploadedImageUrls(req.files);
-    const payload = getNormalizedProductPayload(req.body);
+    const parsedPayload = getNormalizedProductPayload(req.body);
+    assertVariantUploadConsistency(parsedPayload.variants, req.files);
+    const payload = {
+      ...parsedPayload,
+      variants: applyVariantImages(parsedPayload.variants, req.files),
+    };
     const product = await productService.createProduct(sellerId, payload, imageUrls);
 
     return sendSuccess(res, "Product created", { product });
@@ -433,7 +603,12 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
     const sellerId = String(authUser._id);
     const productId = getProductIdFromParams(req.params.id);
     const newImageUrls = extractUploadedImageUrls(req.files);
-    const payload = getNormalizedProductPayload(req.body);
+    const parsedPayload = getNormalizedProductPayload(req.body);
+    assertVariantUploadConsistency(parsedPayload.variants, req.files);
+    const payload = {
+      ...parsedPayload,
+      variants: applyVariantImages(parsedPayload.variants, req.files),
+    };
     const product = await productService.updateProduct(
       productId,
       sellerId,

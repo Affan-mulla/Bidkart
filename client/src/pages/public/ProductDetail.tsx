@@ -92,6 +92,74 @@ export default function ProductDetail() {
     }));
   }, [product?.variants]);
 
+  const activeImageUrls = useMemo(() => {
+    const productImages = product?.images ?? [];
+    const selectedEntries = Object.entries(selectedVariants).filter(
+      ([key, value]) => key.trim().length > 0 && value.trim().length > 0,
+    );
+
+    if (!product?.variants?.length || selectedEntries.length === 0) {
+      return productImages;
+    }
+
+    const normalizedSelections = new Map(selectedEntries);
+
+    const variantCandidates = product.variants
+      .filter((variant) => Array.isArray(variant.images) && variant.images.length > 0)
+      .map((variant) => {
+        const variantSelections = new Map<string, string>();
+
+        const normalizedKey = variant.key?.trim();
+        const normalizedValue = variant.value?.trim();
+        if (normalizedKey && normalizedValue) {
+          variantSelections.set(normalizedKey, normalizedValue);
+        }
+
+        const dynamicSelections = (variant as unknown as {
+          selections?: Record<string, string>;
+          options?: Record<string, string>;
+          attributes?: Record<string, string>;
+        }).selections
+          ?? (variant as unknown as { options?: Record<string, string> }).options
+          ?? (variant as unknown as { attributes?: Record<string, string> }).attributes;
+
+        if (dynamicSelections && typeof dynamicSelections === "object") {
+          Object.entries(dynamicSelections).forEach(([key, value]) => {
+            const trimmedKey = key.trim();
+            const trimmedValue = String(value).trim();
+
+            if (trimmedKey && trimmedValue) {
+              variantSelections.set(trimmedKey, trimmedValue);
+            }
+          });
+        }
+
+        const matchedKeysCount = selectedEntries.reduce((count, [selectionKey, selectionValue]) => {
+          return variantSelections.get(selectionKey) === selectionValue ? count + 1 : count;
+        }, 0);
+
+        return {
+          images: variant.images,
+          matchedKeysCount,
+          totalSelectionKeys: normalizedSelections.size,
+        };
+      });
+
+    const exactMatch = variantCandidates.find(
+      (candidate) =>
+        candidate.totalSelectionKeys > 0 && candidate.matchedKeysCount === candidate.totalSelectionKeys,
+    );
+    if (exactMatch) {
+      return exactMatch.images;
+    }
+
+    const bestPartialMatch = variantCandidates
+      .filter((candidate) => candidate.matchedKeysCount > 0)
+      .sort((first, second) => second.matchedKeysCount - first.matchedKeysCount)[0];
+
+    return bestPartialMatch?.images ?? productImages;
+  }, [product?.images, product?.variants, selectedVariants]);
+
   useEffect(() => {
     if (!product) {
       return;
@@ -107,6 +175,22 @@ export default function ProductDetail() {
 
     setSelectedVariants(defaults);
   }, [product, variantGroups]);
+
+  useEffect(() => {
+    if (activeImageUrls.length === 0) {
+      if (activeImageIndex !== 0) {
+        setActiveImageIndex(0);
+      }
+      return;
+    }
+
+    const currentImage = activeImageUrls[activeImageIndex];
+    if (currentImage) {
+      return;
+    }
+
+    setActiveImageIndex(0);
+  }, [activeImageIndex, activeImageUrls]);
 
   if (queryResult.isLoading) {
     return <ProductDetailSkeleton />;
@@ -149,9 +233,10 @@ export default function ProductDetail() {
     }
   };
 
-  const imageUrls = product.images || [];
-  const hasImages = imageUrls.length > 0;
-  const selectedImage = hasImages ? imageUrls[Math.min(activeImageIndex, imageUrls.length - 1)] : null;
+  const hasImages = activeImageUrls.length > 0;
+  const selectedImage = hasImages
+    ? activeImageUrls[Math.min(activeImageIndex, activeImageUrls.length - 1)]
+    : null;
   const maxQuantity = Math.max(1, Math.min(product.stock, 10));
 
   return (
@@ -170,9 +255,9 @@ export default function ProductDetail() {
             </div>
           )}
 
-          {imageUrls.length > 0 ? (
+          {activeImageUrls.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {imageUrls.map((imageUrl, index) => (
+              {activeImageUrls.map((imageUrl, index) => (
                 <button
                   key={`${imageUrl}-${index}`}
                   type="button"
@@ -198,7 +283,7 @@ export default function ProductDetail() {
             {product.category}
           </Badge>
 
-          <h1 className="text-2xl font-bold text-foreground">{product.title}</h1>
+          <h1 className="text-2xl font-bold text-foreground">{product.title};{selectedVariants[Object.keys(selectedVariants)[0]]}</h1>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">

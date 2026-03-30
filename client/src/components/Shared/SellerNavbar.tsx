@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 
 
 export default function SellerNavbar() {
@@ -55,7 +56,7 @@ export default function SellerNavbar() {
 
     return (
       <>
-      <nav className="sticky top-0 z-50 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80 lg:px-8">
+      <nav className="top-0 z-50 flex h-16 items-center justify-between gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80 lg:px-8">
         <div className="flex items-center gap-3">
           <Button
             type="button"
@@ -86,11 +87,12 @@ export default function SellerNavbar() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
-                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary ring-2 ring-transparent transition-all data-[state=open]:ring-primary/20"
-              >
-                {initials || "S"}
-              </button>
+              <Avatar className="hidden sm:inline-flex cursor-pointer">
+                <AvatarFallback className="bg-primary/10 text-primary w-full h-full flex items-center justify-center text-sm font-semibold">
+                  {initials || "S"}
+                </AvatarFallback>
+                <AvatarImage src={user?.avatar} alt={user?.name || "Seller Avatar"} />
+              </Avatar>
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end">

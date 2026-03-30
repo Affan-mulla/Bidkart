@@ -3,14 +3,26 @@ import Order from "../models/Order.model";
 import Product, { IProductDocument } from "../models/Product.model";
 import AppError from "../utils/appError";
 
+interface ProductVariantInput {
+  key?: unknown;
+  value?: unknown;
+  images?: unknown;
+}
+
 interface ProductInputPayload {
   title?: string;
   description?: string;
   category?: string;
-  variants?: unknown[];
+  variants?: ProductVariantInput[];
   basePrice?: number;
   stock?: number;
   tags?: string[];
+}
+
+interface NormalizedProductVariant {
+  key: string;
+  value: string;
+  images: string[];
 }
 
 interface SellerProductsResult {
@@ -86,6 +98,88 @@ const validateCreatePayload = (data: ProductInputPayload) => {
 };
 
 /**
+ * Normalize variants and ensure each item has both key and value.
+ */
+const normalizeVariants = (
+  variants: ProductVariantInput[] | undefined,
+  options: { requireAtLeastOne: boolean }
+): NormalizedProductVariant[] => {
+  if (!Array.isArray(variants)) {
+    if (options.requireAtLeastOne) {
+      throw new AppError("At least one variant is required", 400);
+    }
+
+    return [];
+  }
+
+  const normalized = variants
+    .map((variant) => {
+      const key = typeof variant?.key === "string" ? variant.key.trim() : "";
+      const value = typeof variant?.value === "string" ? variant.value.trim() : "";
+      const images = Array.isArray(variant?.images)
+        ? variant.images.filter((image): image is string => typeof image === "string" && image.trim().length > 0)
+        : [];
+
+      return {
+        key,
+        value,
+        images,
+      };
+    })
+    .filter((variant) => variant.key.length > 0 || variant.value.length > 0);
+
+  if (normalized.some((variant) => !variant.key || !variant.value)) {
+    throw new AppError("Each variant must include both key and value", 400);
+  }
+
+  if (options.requireAtLeastOne && normalized.length === 0) {
+    throw new AppError("At least one variant is required", 400);
+  }
+
+  return normalized;
+};
+
+/**
+ * Ensure variants are image-complete when variant mode is active.
+ */
+const validateVariantImageCompleteness = (variants: NormalizedProductVariant[]) => {
+  const hasVariantWithoutImages = variants.some((variant) => variant.images.length === 0);
+
+  if (hasVariantWithoutImages) {
+    throw new AppError("Each variant must include at least one image", 400);
+  }
+};
+
+/**
+ * Validate mutually exclusive image mode at creation time.
+ */
+const validateCreateImageMode = (variants: NormalizedProductVariant[], imageUrls: string[]) => {
+  const hasVariants = variants.length > 0;
+  const hasProductImages = imageUrls.length > 0;
+
+  if (hasVariants && hasProductImages) {
+    throw new AppError("Use either variant images or product images, not both", 400);
+  }
+
+  if (hasVariants) {
+    validateVariantImageCompleteness(variants);
+    return;
+  }
+
+  if (!hasProductImages) {
+    throw new AppError("At least one product image is required when variants are not provided", 400);
+  }
+};
+
+/**
+ * Pick a stable cover image for variant-mode products.
+ */
+const getVariantCoverImage = (variants: NormalizedProductVariant[]): string => {
+  const firstVariantImage = variants.find((variant) => variant.images.length > 0)?.images[0];
+  return firstVariantImage || "";
+};
+
+/**
  * Create a new seller product.
  */
 export const createProduct = async (
@@ -94,6 +188,9 @@ export const createProduct = async (
   imageUrls: string[]
 ): Promise<IProductDocument> => {
   validateCreatePayload(data);
+  const normalizedVariants = normalizeVariants(data.variants, { requireAtLeastOne: false });
+  validateCreateImageMode(normalizedVariants, imageUrls);
+  const hasVariants = normalizedVariants.length > 0;
 
   const title = data.title?.trim() || "";
   const category = data.category?.trim() || "";
@@ -102,9 +199,9 @@ export const createProduct = async (
     sellerId: new Types.ObjectId(sellerId),
     title,
     description: data.description?.trim() ?? "",
-    images: imageUrls,
+    images: hasVariants ? [getVariantCoverImage(normalizedVariants)] : imageUrls,
     category,
-    variants: Array.isArray(data.variants) ? data.variants : [],
+    variants: normalizedVariants,
     basePrice: data.basePrice,
     stock: data.stock,
     tags: Array.isArray(data.tags) ? data.tags : [],
@@ -179,6 +276,8 @@ export const updateProduct = async (
   const product = await getProductById(productId);
   ensureOwnership(product, sellerId);
 
+  const hasNewProductImages = Boolean(newImageUrls && newImageUrls.length > 0);
+
   if (data.title !== undefined) {
     if (!data.title.trim()) {
       throw new AppError("Product title cannot be empty", 400);
@@ -211,16 +310,32 @@ export const updateProduct = async (
     product.stock = data.stock;
   }
 
+  let nextVariants = product.variants as unknown as NormalizedProductVariant[];
+
   if (data.variants !== undefined) {
-    product.variants = Array.isArray(data.variants) ? data.variants : [];
+    nextVariants = normalizeVariants(data.variants, { requireAtLeastOne: false });
+    product.variants = nextVariants;
   }
 
   if (data.tags !== undefined) {
     product.tags = Array.isArray(data.tags) ? data.tags : [];
   }
 
-  if (newImageUrls && newImageUrls.length > 0) {
-    product.images = newImageUrls;
+  if (hasNewProductImages) {
+    product.images = newImageUrls as string[];
+  }
+
+  const hasVariantsAfterUpdate = nextVariants.length > 0;
+
+  if (hasVariantsAfterUpdate && hasNewProductImages) {
+    throw new AppError("Use either variant images or product images, not both", 400);
+  }
+
+  if (hasVariantsAfterUpdate) {
+    validateVariantImageCompleteness(nextVariants);
+    product.images = [getVariantCoverImage(nextVariants)];
+  } else if (product.images.length === 0) {
+    throw new AppError("At least one product image is required when variants are not provided", 400);
   }
 
   await product.save();

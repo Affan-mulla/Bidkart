@@ -54,7 +54,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
-    files: 5,
+    files: 25,
     fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (_req, file, callback) => {
@@ -66,7 +66,7 @@ const upload = multer({
   },
 });
 
-const uploadProductImagesParser = upload.array("images", 5);
+const uploadProductImagesParser = upload.any();
 
 /**
  * Parse multipart files, then upload accepted product images to Cloudinary.
